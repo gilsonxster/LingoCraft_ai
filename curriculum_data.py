@@ -577,13 +577,25 @@ CURATED_CURRICULA = {
     'spanish_hacer': SPANISH_HACER_CURRICULUM
 }
 
-def get_curriculum_or_fallback(topic_query: str, target_lang: str = 'Spanish', native_lang: str = 'English') -> CurriculumCourse:
+def get_curriculum_or_fallback(topic_query: str = '', *args, **kwargs) -> CurriculumCourse:
+    target_lang = kwargs.get('target_lang', 'Spanish')
+    native_lang = kwargs.get('native_lang', 'English')
+    if len(args) == 1:
+        val = str(args[0]).strip()
+        if 'portugu' in val.lower() or 'english' in val.lower():
+            native_lang = val
+        else:
+            target_lang = val
+    elif len(args) >= 2:
+        target_lang = str(args[0]).strip()
+        native_lang = str(args[1]).strip()
+
     cards = build_spanish_hacer_pack(native_lang=native_lang)
     desc = f"Domine o verbo irregular 'hacer' (fazer) em espanhol passo a passo." if 'portugu' in native_lang.lower() else f"Master the essential Spanish irregular verb 'hacer' (to do / to make) across all core grammatical tenses."
     return CurriculumCourse(
         topic_id='spanish_hacer',
         title='Irregular Verbs: Verbo "Hacer"',
-        target_language='Spanish',
+        target_language=target_lang or 'Spanish',
         target_language_code='es',
         native_language=native_lang,
         native_language_code='pt' if 'portugu' in native_lang.lower() else 'en',
@@ -591,3 +603,4 @@ def get_curriculum_or_fallback(topic_query: str, target_lang: str = 'Spanish', n
         tenses_roadmap=['Infinitivo', 'Gerundio', 'Participio', 'Presente de Indicativo', 'Pretérito Indefinido'],
         cards_by_tense=cards
     )
+
