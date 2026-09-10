@@ -222,13 +222,13 @@ with st.sidebar:
         curated_choices = [
             "Spanish: Irregular Verbs — Verbo 'Hacer'",
             "Spanish: 'Ser' vs 'Estar' (Essentials)",
-            "French: Verbe Irrégulier — 'Aller'",
-            "German: Modalverben — 'Können'",
             "Portuguese: Verbo Irregular — 'Fazer'",
-            "Italian: Verbi Irregolari — 'Fare'"
+            "Portuguese: Pretérito Perfeito vs Imperfeito",
+            "English: Irregular Verbs — 'To Do / To Make'",
+            "Spanish: Pretérito Indefinido vs Imperfecto"
         ]
         chosen_topic = st.selectbox("Choose a Curated Topic:", curated_choices)
-        curated_native = st.selectbox("Your Native / Support Language:", ["English", "Portuguese", "Spanish", "French"])
+        curated_native = st.selectbox("Your Native / Support Language:", ["English", "Portuguese", "Spanish"])
 
         if st.button("Load Selected Curriculum", use_container_width=True):
             if "Hacer" in chosen_topic or "Spanish" in chosen_topic:
@@ -257,8 +257,8 @@ with st.sidebar:
             st.rerun()
 
     else:
-        custom_target = st.selectbox("Target Language:", ["Spanish", "French", "German", "Italian", "Portuguese", "Japanese", "Other"])
-        custom_native = st.selectbox("Native / Support Language:", ["English", "Spanish", "Portuguese", "French"])
+        custom_target = st.selectbox("Target Language:", ["Spanish", "Portuguese", "English"])
+        custom_native = st.selectbox("Native / Support Language:", ["English", "Portuguese", "Spanish"])
         custom_topic_text = st.text_input("Topic Description:", "Irregular Verbs: Verbo 'Tener'")
 
         if st.button("🚀 Initialize Custom Curriculum", use_container_width=True):
