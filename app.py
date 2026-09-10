@@ -214,6 +214,22 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("🗺️ Pedagogical Roadmap")
     roadmap = st.session_state.current_curriculum.get("tenses_roadmap", [])
+    total_tenses = len(roadmap)
+    is_curriculum_completed = (
+        total_tenses > 0 and (
+            st.session_state.active_tense_index >= total_tenses
+            or len(st.session_state.completed_tenses) >= total_tenses
+        )
+    )
+
+    if roadmap:
+        if 0 <= st.session_state.active_tense_index < total_tenses:
+            active_tense_name = roadmap[st.session_state.active_tense_index]
+        else:
+            active_tense_name = roadmap[-1]
+    else:
+        active_tense_name = "General"
+
     for idx, tense in enumerate(roadmap):
         if idx in st.session_state.completed_tenses:
             st.markdown(f"✅ **{idx+1}. {tense}** (Mastered)")
@@ -250,7 +266,7 @@ with tab_curriculum:
         st.markdown(f"- **Stage {i+1}: {t}** — {status}")
 
 with tab_coach:
-    curr_tense_name = roadmap[st.session_state.active_tense_index] if roadmap else "General"
+    curr_tense_name = active_tense_name
     st.subheader("💬 Empathetic Language Coach")
     st.markdown("Ask any questions about the current tense, grammar doubts, cultural usage, or request additional practice sentences!")
 
@@ -304,20 +320,27 @@ with tab_coach:
 
 with tab_learn:
     # Check if all tenses completed
-    if len(st.session_state.completed_tenses) >= len(roadmap) and len(roadmap) > 0:
+    if is_curriculum_completed:
         st.balloons()
         st.success("🎉 ¡Felicitaciones! You have successfully mastered all tenses in this curriculum!")
         st.markdown(f"### Summary of Mastery: **{st.session_state.current_curriculum.get('topic')}**")
         st.write("You have conquered each grammatical form with pronunciation, speech validation, and conjugation quiz challenges.")
-        if st.button("Review or Study Another Topic ➔"):
-            st.session_state.active_tense_index = 0
-            st.session_state.active_card_step = 1
-            st.session_state.completed_card_steps = set()
-            st.session_state.completed_tenses = set()
-            st.rerun()
+        col_rev, col_new = st.columns(2)
+        with col_rev:
+            if st.button("🔄 Review Curriculum from Start", use_container_width=True):
+                st.session_state.active_tense_index = 0
+                st.session_state.active_card_step = 1
+                st.session_state.completed_card_steps = set()
+                st.session_state.completed_tenses = set()
+                st.session_state.current_pack = None
+                st.session_state.speech_eval_result = None
+                st.session_state.quiz_eval_result = None
+                st.rerun()
+        with col_new:
+            st.info("💡 You can also choose another topic or change language pairs anytime in the sidebar!")
     else:
         # Get active tense
-        current_tense_name = roadmap[st.session_state.active_tense_index]
+        current_tense_name = active_tense_name
 
         # Load card pack if needed
         if st.session_state.current_pack is None or st.session_state.current_pack.tense_name != current_tense_name:
@@ -657,7 +680,7 @@ with tab_learn:
                                     st.warning("⚠️ Please select an option first!")
                                 else:
                                     correct_mp_idx = qres.get("micro_practice_correct_index", 0)
-                                    if user_mp_choice == mp_options[correct_mp_idx]:
+                                    if 0 <= correct_mp_idx < len(mp_options) and user_mp_choice == mp_options[correct_mp_idx]:
                                         st.success(f"¡Bien hecho! {qres.get('micro_practice_explanation')}")
                                         st.session_state.micro_practice_result = True
                                     else:
