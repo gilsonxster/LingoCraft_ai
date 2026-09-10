@@ -1,6 +1,6 @@
 """
 Conjugation Quiz Evaluator Agent for LingoCraft AI.
-Analyzes quiz submissions, explains common pitfalls, and generates micro-practice drills.
+Analyzes quiz submissions, explains common pitfalls, and generates micro-practice drills in the learner's native language.
 """
 import json
 from typing import Dict, Any, List
@@ -17,18 +17,19 @@ Your pedagogical purpose:
    - Provide empathetic, constructive feedback.
    - Crucially explain WHY this mistake is very common among learners (e.g., false analogies with regular verbs, confusion between 1st and 3rd person singular, mixing up preterite vs imperfect).
    - Offer an IMMEDIATE micro-practice drill (a single sentence challenge with multiple choices) to cement the rule right now before moving forward.
-4. Always bold key grammatical terms (**bold**).
+4. CRITICAL LANGUAGE DIRECTIVE: Write the 'headline', 'feedback', 'why_common_mistake', and 'micro_practice_explanation' in the learner's native/support language ({native_lang}).
+5. Always bold key grammatical terms (**bold**).
 
 Return ONLY a JSON object:
 {
   "is_correct": true/false,
-  "headline": "¡Brillante!" or "¡Casi! Comprendamos este detalle:",
-  "feedback": "Detailed explanation with **bold** highlights.",
-  "why_common_mistake": "Why learners often make this slip...",
-  "micro_practice_prompt": "Try this micro-practice: 'El chef _____ la comida ayer.'",
+  "headline": "¡Brillante!" or "Almost! Let's understand this detail:",
+  "feedback": "Detailed explanation written in native language with **bold** highlights.",
+  "why_common_mistake": "Why learners often make this slip in native language...",
+  "micro_practice_prompt": "Try this micro-practice in native language: 'El chef _____ la comida ayer.'",
   "micro_practice_options": ["hizo", "hace", "hicieron", "hacer"],
   "micro_practice_correct_index": 0,
-  "micro_practice_explanation": "Explanation for the micro-practice."
+  "micro_practice_explanation": "Explanation for the micro-practice in native language."
 }
 """
 
@@ -48,14 +49,17 @@ def evaluate_quiz_submission(
     native_lang: str = "English",
     api_key: str = ""
 ) -> Dict[str, Any]:
-    """Evaluates quiz selection with constructive feedback loop."""
+    """Evaluates quiz selection with constructive feedback loop in native language."""
     correct_option = quiz_data.options[quiz_data.correct_index]
     is_correct = (selected_option.strip() == correct_option.strip())
 
+    is_pt = "portugu" in native_lang.lower()
+
     if is_correct:
+        headline = "¡Excelente trabalho! 🎯" if is_pt else "¡Excelente trabajo! 🎯"
         return {
             "is_correct": True,
-            "headline": "¡Excelente trabajo! 🎯",
+            "headline": headline,
             "feedback": quiz_data.correct_explanation,
             "why_common_mistake": "",
             "micro_practice_prompt": "",
@@ -67,20 +71,22 @@ def evaluate_quiz_submission(
     # Selected incorrect option: get distractor reason
     distractor_reason = quiz_data.distractor_explanations.get(
         selected_option,
-        f"Choosing '**{selected_option}**' is a common misstep because it resembles other standard conjugations."
+        f"Escolher '**{selected_option}**' é um desvio comum porque se assemelha a outras formas conhecidas." if is_pt else f"Choosing '**{selected_option}**' is a common misstep because it resembles other standard conjugations."
     )
 
     if api_key and api_key.strip():
         try:
             client = genai.Client(api_key=api_key.strip())
             prompt = f"""
+Target Language: {target_lang}
+Native/Support Language: {native_lang}
 Sentence Prompt: {quiz_data.sentence_prompt}
 Options: {quiz_data.options}
 Correct Option: {correct_option}
 Learner Selected: {selected_option}
 Pre-identified pitfall: {distractor_reason}
 
-Explain why this mistake is common and provide an immediate micro-practice drill. Return strict JSON.
+CRITICAL: Explain why this mistake is common and provide an immediate micro-practice drill, WRITTEN ENTIRELY IN {native_lang}. Return strict JSON.
 """
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
@@ -96,11 +102,17 @@ Explain why this mistake is common and provide an immediate micro-practice drill
         except Exception as e:
             print(f"Quiz evaluation fallback: {e}")
 
-    # Offline constructive feedback
+    # Localized offline constructive feedback
+    headline = "Sem problemas, é um erro muito comum! 💡" if is_pt else "¡No pasa nada, es un error muy común! 💡"
+    feedback_text = (
+        f"Você escolheu '**{selected_option}**', mas a forma correta aqui é '**{correct_option}**'."
+        if is_pt else
+        f"You chose '**{selected_option}**', but the correct form here is '**{correct_option}**'."
+    )
     return {
         "is_correct": False,
-        "headline": "¡No pasa nada, es un error muy común! 💡",
-        "feedback": f"You chose '**{selected_option}**', but the correct form here is '**{correct_option}**'.",
+        "headline": headline,
+        "feedback": feedback_text,
         "why_common_mistake": distractor_reason,
         "micro_practice_prompt": quiz_data.micro_practice_prompt,
         "micro_practice_options": quiz_data.micro_practice_options,

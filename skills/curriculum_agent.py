@@ -9,11 +9,11 @@ from google import genai
 
 CURRICULUM_SYSTEM_PROMPT = """
 You are LingoCraft AI's Curriculum Initialization Agent.
-Your role:
+Your pedagogical role:
 1. Detect or verify the target language and native/support language.
 2. For the selected topic (e.g., Irregular Verbs: Verbo 'Hacer'), create a pedagogical roadmap of tenses/grammatical forms to be mastered sequentially.
 3. Order the roadmap from foundational forms (e.g., Infinitivo, Gerundio, Participio) to core communicative tenses (e.g., Presente, Pretérito Indefinido, Imperfecto, Futuro, Subjuntivo).
-4. Emphasize proceeding ONE tense at a time without overwhelming the student.
+4. CRITICAL LANGUAGE DIRECTIVE: Write the 'description' and any overview notes in the learner's specified Native/Support Language ({native_lang}), while keeping tense names standard.
 
 Return ONLY a JSON object with this structure:
 {
@@ -22,7 +22,7 @@ Return ONLY a JSON object with this structure:
   "target_language_code": "es",
   "native_language": "English",
   "native_language_code": "en",
-  "description": "A concise pedagogical summary of what this curriculum covers.",
+  "description": "A concise pedagogical summary in the learner's native/support language explaining what this curriculum covers.",
   "tenses_roadmap": ["Infinitivo", "Gerundio", "Participio", "Presente de Indicativo", "Pretérito Indefinido"]
 }
 """
@@ -37,7 +37,7 @@ def create_curriculum_agent() -> Agent:
     )
 
 def generate_curriculum_plan(topic: str, target_lang: str, native_lang: str, api_key: str = "") -> Dict[str, Any]:
-    """Generates a curriculum roadmap using Gemini or fallback rules."""
+    """Generates a curriculum roadmap using Gemini or localized fallback rules."""
     if api_key and api_key.strip():
         try:
             client = genai.Client(api_key=api_key.strip())
@@ -46,7 +46,7 @@ User Topic: {topic}
 Target Language: {target_lang}
 Native/Support Language: {native_lang}
 
-Generate the pedagogical curriculum initialization roadmap. Return strict JSON.
+Generate the pedagogical curriculum roadmap. Write all descriptions in {native_lang}. Return strict JSON.
 """
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
@@ -61,14 +61,15 @@ Generate the pedagogical curriculum initialization roadmap. Return strict JSON.
         except Exception as e:
             print(f"Curriculum generation fallback: {e}")
 
-    # Offline / default curated fallback
-    from curriculum_data import SPANISH_HACER_CURRICULUM
+    # Offline / localized curated fallback
+    from curriculum_data import get_curriculum_or_fallback
+    curriculum = get_curriculum_or_fallback(topic, target_lang, native_lang)
     return {
-        "topic": topic or "Irregular Verbs: Verbo 'Hacer'",
-        "target_language": target_lang or "Spanish",
-        "target_language_code": "es",
-        "native_language": native_lang or "English",
-        "native_language_code": "en",
-        "description": f"Pedagogical tense-by-tense mastery of '{topic}' in {target_lang}. Proceed one tense at a time.",
-        "tenses_roadmap": SPANISH_HACER_CURRICULUM.tenses_roadmap
+        "topic": topic or curriculum.title,
+        "target_language": target_lang or curriculum.target_language,
+        "target_language_code": curriculum.target_language_code,
+        "native_language": native_lang or curriculum.native_language,
+        "native_language_code": curriculum.native_language_code,
+        "description": curriculum.description,
+        "tenses_roadmap": curriculum.tenses_roadmap
     }

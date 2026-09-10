@@ -1,6 +1,6 @@
 """
 Speech Validation Agent for LingoCraft AI.
-Evaluates transcription and phonetic accuracy, provides actionable tips and immediate micro-practice.
+Evaluates transcription and phonetic accuracy, provides actionable tips and immediate micro-practice in the learner's native language.
 """
 import json
 from typing import Dict, Any
@@ -16,14 +16,15 @@ Your pedagogical purpose:
 3. If pronunciation is good/excellent: celebrate their vocal effort warmly.
 4. If pronunciation needs improvement: empathetically explain WHY this sound or stress pattern is tricky for non-native speakers, provide actionable vocal adjustments, and offer a quick micro-practice sentence or word to isolate the sound.
 5. Highlight phonetic stress in **UPPERCASE** and **bold** (e.g., ha-**CIEN**-do).
+6. CRITICAL LANGUAGE DIRECTIVE: Write the 'feedback_title', 'evaluation_message', 'actionable_tip', and 'micro_practice_drill' in the learner's specified native/support language ({native_lang}).
 
 Return ONLY a JSON object:
 {
   "accuracy_score": 85,
-  "feedback_title": "¡Casi perfecto!",
-  "evaluation_message": "Your vocal cadence was very natural. Focus on keeping the stress on **CIEN**.",
+  "feedback_title": "Headline in native language (e.g., Quase perfeito!)",
+  "evaluation_message": "Your vocal cadence was very natural written in native language.",
   "phonetic_breakdown": "ha-**CIEN**-do",
-  "actionable_tip": "Make sure the initial 'h' is silent and glide the 'ie' smoothly.",
+  "actionable_tip": "Make sure the initial h is silent and glide the ie smoothly written in native language.",
   "requires_micro_practice": false,
   "micro_practice_drill": "Say 3 times: ha-**CIEN**-do café."
 }
@@ -48,18 +49,19 @@ def evaluate_speech_submission(
     """Evaluates spoken transcription using algorithmic comparison or Gemini."""
     algo_result = evaluate_spoken_accuracy(spoken_text, target_phrase)
     score = algo_result["score"]
+    is_pt = "portugu" in native_lang.lower()
 
     if api_key and api_key.strip():
         try:
             client = genai.Client(api_key=api_key.strip())
             prompt = f"""
 Target Language: {target_lang}
-Native Language: {native_lang}
+Native/Support Language: {native_lang}
 Target Phrase: "{target_phrase}"
 User Spoken Transcription: "{spoken_text}"
 Algorithmic Text Similarity Score: {score}%
 
-Provide an empathetic, constructive speech validation report. Return strict JSON.
+CRITICAL: Provide an empathetic, constructive speech validation report written entirely in {native_lang}. Return strict JSON.
 """
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
@@ -75,34 +77,34 @@ Provide an empathetic, constructive speech validation report. Return strict JSON
         except Exception as e:
             print(f"Speech evaluation fallback: {e}")
 
-    # Offline algorithmic evaluation
+    # Localized offline algorithmic evaluation
     if score >= 80:
         return {
             "accuracy_score": score,
-            "feedback_title": "¡Excelente Pronunciación! 🌟",
-            "evaluation_message": f"Great vocalization! You matched '{target_phrase}' clearly and confidently.",
-            "phonetic_breakdown": "Well stressed and clear vowels",
-            "actionable_tip": "Keep this exact rhythm when speaking in real conversations!",
+            "feedback_title": "Excelente Pronúncia! 🌟" if is_pt else "¡Excelente Pronunciación! 🌟",
+            "evaluation_message": f"Ótima vocalização! Você reproduziu '{target_phrase}' com muita clareza." if is_pt else f"Great vocalization! You matched '{target_phrase}' clearly and confidently.",
+            "phonetic_breakdown": "Vogais claras e sílaba tônica bem definida",
+            "actionable_tip": "Mantenha esse mesmo ritmo ao falar em conversas reais!" if is_pt else "Keep this exact rhythm when speaking in real conversations!",
             "requires_micro_practice": False,
             "micro_practice_drill": ""
         }
     elif score >= 50:
         return {
             "accuracy_score": score,
-            "feedback_title": "¡Buen Intento! Moving in the right direction 👍",
-            "evaluation_message": f"You transcribed '{spoken_text}' compared to '{target_phrase}'.",
-            "phonetic_breakdown": "Pay attention to vowel precision",
-            "actionable_tip": "Be mindful of silent letters and ensure the primary syllable receives emphatic stress.",
+            "feedback_title": "Bom esforço! No caminho certo 👍" if is_pt else "¡Buen Intento! Moving in the right direction 👍",
+            "evaluation_message": f"Você falou '{spoken_text}', comparado com o modelo '{target_phrase}'." if is_pt else f"You transcribed '{spoken_text}' compared to '{target_phrase}'.",
+            "phonetic_breakdown": "Atenção à precisão das vogais",
+            "actionable_tip": "Fique atento às letras mudas e certifique-se de que a sílaba principal receba a ênfase correta." if is_pt else "Be mindful of silent letters and ensure the primary syllable receives emphatic stress.",
             "requires_micro_practice": True,
-            "micro_practice_drill": f"Try repeating slowly: '{target_phrase}' focusing on the main verb."
+            "micro_practice_drill": f"Tente repetir devagar: '{target_phrase}' focando no verbo principal." if is_pt else f"Try repeating slowly: '{target_phrase}' focusing on the main verb."
         }
     else:
         return {
             "accuracy_score": score,
-            "feedback_title": "Let's Refine That! Don't worry, pronunciation takes muscle memory 💪",
-            "evaluation_message": f"We detected '{spoken_text}', but the target was '{target_phrase}'.",
-            "phonetic_breakdown": "Break down each syllable independently",
-            "actionable_tip": "Speak slowly and clearly into the microphone. Practice individual words first!",
+            "feedback_title": "Vamos lapidar isso! Pronúncia exige memória muscular 💪" if is_pt else "Let's Refine That! Pronunciation takes muscle memory 💪",
+            "evaluation_message": f"Detectamos '{spoken_text}', mas a frase alvo era '{target_phrase}'." if is_pt else f"We detected '{spoken_text}', but the target was '{target_phrase}'.",
+            "phonetic_breakdown": "Divida cada sílaba pausadamente",
+            "actionable_tip": "Fale calmamente perto do microfone, praticando uma palavra por vez." if is_pt else "Speak slowly and clearly into the microphone. Practice individual words first!",
             "requires_micro_practice": True,
-            "micro_practice_drill": f"Repeat 3 times: '{target_phrase}'"
+            "micro_practice_drill": f"Repita 3 vezes em voz alta: '{target_phrase}'" if is_pt else f"Repeat 3 times aloud: '{target_phrase}'"
         }
