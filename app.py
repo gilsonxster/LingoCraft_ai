@@ -76,7 +76,6 @@ st.markdown("""
         color: #065F46;
         margin-top: 14px;
     }
-    .feedback-box-error {
         background-color: #FEF2F2;
         border: 1px solid #FECACA;
         border-radius: 8px;
@@ -84,8 +83,69 @@ st.markdown("""
         color: #991B1B;
         margin-top: 14px;
     }
+    .curriculum-card {
+        background-color: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-top: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+    }
+    .badge-mastered {
+        background-color: #ECFDF5;
+        color: #065F46;
+        border: 1px solid #A7F3D0;
+        font-weight: 600;
+        font-size: 0.82rem;
+        padding: 4px 10px;
+        border-radius: 9999px;
+    }
+    .badge-active {
+        background-color: #EFF6FF;
+        color: #1D4ED8;
+        border: 1px solid #BFDBFE;
+        font-weight: 600;
+        font-size: 0.82rem;
+        padding: 4px 10px;
+        border-radius: 9999px;
+    }
+    .badge-upcoming {
+        background-color: #F3F4F6;
+        color: #4B5563;
+        border: 1px solid #E5E7EB;
+        font-weight: 600;
+        font-size: 0.82rem;
+        padding: 4px 10px;
+        border-radius: 9999px;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# Tab Constants
+MAIN_TAB_LEARN = "📖 5-Stage Flashcard Study"
+MAIN_TAB_COACH = "💬 Ask Coach LingoCraft"
+MAIN_TAB_CURRICULUM = "🗺️ Curriculum Overview"
+MAIN_TAB_OPTIONS = [MAIN_TAB_LEARN, MAIN_TAB_COACH, MAIN_TAB_CURRICULUM]
+
+# Navigation Helper Callbacks
+def select_tense_and_study(idx: int):
+    st.session_state.active_tense_index = idx
+    st.session_state.active_card_step = 1
+    st.session_state.completed_card_steps = set()
+    st.session_state.current_pack = None
+    st.session_state.speech_eval_result = None
+    st.session_state.quiz_eval_result = None
+    st.session_state.main_tab = MAIN_TAB_LEARN
+
+def select_tense_and_coach(idx: int):
+    st.session_state.active_tense_index = idx
+    st.session_state.main_tab = MAIN_TAB_COACH
+
+def toggle_tense_mastery(idx: int):
+    if idx in st.session_state.completed_tenses:
+        st.session_state.completed_tenses.discard(idx)
+    else:
+        st.session_state.completed_tenses.add(idx)
 
 # Initialize Session State
 if "api_key" not in st.session_state:
@@ -100,6 +160,9 @@ if "current_curriculum" not in st.session_state:
         "description": SPANISH_HACER_CURRICULUM.description,
         "tenses_roadmap": SPANISH_HACER_CURRICULUM.tenses_roadmap,
     }
+
+if "main_tab" not in st.session_state:
+    st.session_state.main_tab = MAIN_TAB_LEARN
 
 if "active_tense_index" not in st.session_state:
     st.session_state.active_tense_index = 0
@@ -190,6 +253,7 @@ with st.sidebar:
             st.session_state.completed_tenses = set()
             st.session_state.speech_eval_result = None
             st.session_state.quiz_eval_result = None
+            st.session_state.main_tab = MAIN_TAB_LEARN
             st.rerun()
 
     else:
@@ -208,6 +272,7 @@ with st.sidebar:
                 st.session_state.completed_tenses = set()
                 st.session_state.speech_eval_result = None
                 st.session_state.quiz_eval_result = None
+                st.session_state.main_tab = MAIN_TAB_LEARN
                 st.success("Roadmap successfully initialized!")
                 st.rerun()
 
@@ -231,12 +296,19 @@ with st.sidebar:
         active_tense_name = "General"
 
     for idx, tense in enumerate(roadmap):
-        if idx in st.session_state.completed_tenses:
-            st.markdown(f"✅ **{idx+1}. {tense}** (Mastered)")
-        elif idx == st.session_state.active_tense_index:
-            st.markdown(f"🎯 **{idx+1}. {tense}** *(In Progress)*")
-        else:
-            st.markdown(f"⏳ {idx+1}. {tense}")
+        is_act = (idx == st.session_state.active_tense_index)
+        is_comp = (idx in st.session_state.completed_tenses)
+        label = f"✅ {idx+1}. {tense}" if is_comp else (f"🎯 {idx+1}. {tense}" if is_act else f"⏳ {idx+1}. {tense}")
+        btn_t = "primary" if is_act else "secondary"
+        st.button(
+            label,
+            key=f"sidebar_tense_{idx}",
+            use_container_width=True,
+            type=btn_t,
+            on_click=select_tense_and_study,
+            args=(idx,),
+            help=f"Click to study Stage {idx+1}: {tense}"
+        )
 
     st.markdown("---")
     if st.button("🔄 Reset Progress / Start Over", use_container_width=True):
@@ -247,6 +319,7 @@ with st.sidebar:
         st.session_state.current_pack = None
         st.session_state.speech_eval_result = None
         st.session_state.quiz_eval_result = None
+        st.session_state.main_tab = MAIN_TAB_LEARN
         st.rerun()
 
 # Main Area Layout
@@ -254,16 +327,101 @@ st.markdown('<div class="main-title">🎓 LingoCraft AI</div>', unsafe_allow_htm
 st.markdown('<div class="sub-title">Interactive, empathetic, tense-by-tense foreign language coach using an enhanced 5-stage flashcard system.</div>', unsafe_allow_html=True)
 
 # Main Navigation Tabs
-tab_learn, tab_coach, tab_curriculum = st.tabs(["📖 5-Stage Flashcard Study", "💬 Ask Coach LingoCraft", "🗺️ Curriculum Overview"])
+tab_learn, tab_coach, tab_curriculum = st.tabs(
+    MAIN_TAB_OPTIONS,
+    key="main_tab",
+    on_change="rerun"
+)
 
 with tab_curriculum:
     st.subheader(f"Topic: {st.session_state.current_curriculum.get('topic')}")
-    st.write(f"**Target Language:** {st.session_state.current_curriculum.get('target_language')} | **Native / Support Language:** {st.session_state.current_curriculum.get('native_language')}")
+    col_meta1, col_meta2, col_meta3 = st.columns(3)
+    with col_meta1:
+        st.metric("Target Language", st.session_state.current_curriculum.get('target_language', 'Spanish'))
+    with col_meta2:
+        st.metric("Native / Support", st.session_state.current_curriculum.get('native_language', 'English'))
+    with col_meta3:
+        comp_count = len(st.session_state.completed_tenses)
+        st.metric("Mastery Progress", f"{comp_count} / {total_tenses} Stages")
+
+    prog_val = comp_count / max(total_tenses, 1)
+    st.progress(prog_val)
     st.info(st.session_state.current_curriculum.get("description", ""))
-    st.markdown("### Tenses Sequence in this Pack:")
+
+    st.markdown("---")
+    st.markdown("### 🎯 Interactive Tenses Stepper")
+    st.caption("Click any tense below to jump directly to its 5-stage flashcard study:")
+
+    # Top Stepper Bar (Clickable Stage Buttons similar to the flashcard stepper)
+    c_cols = st.columns(min(len(roadmap), 5)) if roadmap else []
     for i, t in enumerate(roadmap):
-        status = "✅ Mastered" if i in st.session_state.completed_tenses else ("🎯 Active" if i == st.session_state.active_tense_index else "⏳ Upcoming")
-        st.markdown(f"- **Stage {i+1}: {t}** — {status}")
+        with c_cols[i % len(c_cols)]:
+            is_act = (i == st.session_state.active_tense_index)
+            is_comp = (i in st.session_state.completed_tenses)
+            icon = "🎯 " if is_act else ("✓ " if is_comp else "⏳ ")
+            btn_t = "primary" if is_act else "secondary"
+            st.button(
+                f"{icon}Stage {i+1}\n{t}",
+                key=f"curr_stepper_btn_{i}",
+                use_container_width=True,
+                type=btn_t,
+                on_click=select_tense_and_study,
+                args=(i,),
+                help=f"Click to study Stage {i+1}: {t}"
+            )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 📚 Stages Overview & Flashcard Jump")
+
+    for i, t in enumerate(roadmap):
+        is_act = (i == st.session_state.active_tense_index)
+        is_comp = (i in st.session_state.completed_tenses)
+        badge_class = "badge-mastered" if is_comp else ("badge-active" if is_act else "badge-upcoming")
+        badge_label = "✅ Mastered" if is_comp else ("🎯 In Progress (Active)" if is_act else "⏳ Upcoming")
+        border_color = "#3B82F6" if is_act else ("#10B981" if is_comp else "#E5E7EB")
+
+        st.markdown(f"""
+        <div class="curriculum-card" style="border-left: 5px solid {border_color};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <h4 style="margin: 0; color: #1E3A8A;">Stage {i+1}: {t}</h4>
+                <span class="{badge_class}">{badge_label}</span>
+            </div>
+            <p style="color: #4B5563; margin: 4px 0 10px 0; font-size: 0.92rem;">
+                <strong>5-Stage Mastery Flow:</strong> 1. Concept & Rule ➔ 2. Bilingual Example ➔ 3. Pronunciation Guide ➔ 4. Speech Validation ➔ 5. Conjugation Quiz
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_act1, col_act2, col_act3 = st.columns([2.5, 2, 1.5])
+        with col_act1:
+            btn_label = f"📖 {'Continue' if is_act else ('Review' if is_comp else 'Start')} Study ({t}) ➔"
+            btn_t = "primary" if is_act else "secondary"
+            st.button(
+                btn_label,
+                key=f"curr_card_study_{i}",
+                use_container_width=True,
+                type=btn_t,
+                on_click=select_tense_and_study,
+                args=(i,)
+            )
+        with col_act2:
+            st.button(
+                f"💬 Ask Coach About {t}",
+                key=f"curr_card_coach_{i}",
+                use_container_width=True,
+                on_click=select_tense_and_coach,
+                args=(i,)
+            )
+        with col_act3:
+            toggle_text = "↩️ Mark Active" if is_comp else "✅ Mark Mastered"
+            st.button(
+                toggle_text,
+                key=f"curr_card_toggle_{i}",
+                use_container_width=True,
+                on_click=toggle_tense_mastery,
+                args=(i,)
+            )
+        st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
 with tab_coach:
     curr_tense_name = active_tense_name
