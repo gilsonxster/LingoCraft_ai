@@ -3,9 +3,11 @@ LingoCraft AI - Streamlit Application.
 Interactive, empathetic, tense-by-tense language learning coach with 5-stage flashcard system.
 """
 import streamlit as st
+import streamlit.components.v1 as components
 import os
 import json
 import random
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -13,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import LingoCraft AI components
+import session_manager
 from lingocraft_agent import LingoCraftOrchestrator
 from curriculum_data import SPANISH_HACER_CURRICULUM, CURATED_CURRICULA, get_curriculum_or_fallback
 from audio_utils import generate_tts_audio, transcribe_audio_bytes
@@ -127,6 +130,20 @@ MAIN_TAB_COACH = "💬 Ask Coach LingoCraft"
 MAIN_TAB_CURRICULUM = "🗺️ Curriculum Overview"
 MAIN_TAB_OPTIONS = [MAIN_TAB_LEARN, MAIN_TAB_COACH, MAIN_TAB_CURRICULUM]
 
+# Auto-save helper to persist progress into SQLite
+def auto_save_current_session():
+    if "session_id" in st.session_state and st.session_state.session_id:
+        curr = st.session_state.get("current_curriculum", {})
+        state_dict = {
+            "current_curriculum": curr,
+            "active_tense_index": st.session_state.get("active_tense_index", 0),
+            "active_card_step": st.session_state.get("active_card_step", 1),
+            "completed_tenses": list(st.session_state.get("completed_tenses", set())),
+            "completed_card_steps": list(st.session_state.get("completed_card_steps", set())),
+            "chat_history": st.session_state.get("chat_history", []),
+        }
+        session_manager.save_session(st.session_state.session_id, state_dict)
+
 # Navigation Helper Callbacks
 def select_tense_and_study(idx: int):
     st.session_state.active_tense_index = idx
@@ -136,16 +153,42 @@ def select_tense_and_study(idx: int):
     st.session_state.speech_eval_result = None
     st.session_state.quiz_eval_result = None
     st.session_state.main_tab = MAIN_TAB_LEARN
+    auto_save_current_session()
 
 def select_tense_and_coach(idx: int):
     st.session_state.active_tense_index = idx
     st.session_state.main_tab = MAIN_TAB_COACH
+    auto_save_current_session()
 
 def toggle_tense_mastery(idx: int):
     if idx in st.session_state.completed_tenses:
         st.session_state.completed_tenses.discard(idx)
     else:
         st.session_state.completed_tenses.add(idx)
+    auto_save_current_session()
+
+# Resolve Session ID from URL query parameters (?sid=...) or restore active session
+url_sid = st.query_params.get("sid", "").strip()
+
+if "session_id" not in st.session_state:
+    if url_sid:
+        loaded_state = session_manager.load_session(url_sid)
+        if loaded_state:
+            st.session_state.session_id = url_sid
+            st.session_state.current_curriculum = loaded_state["current_curriculum"]
+            st.session_state.active_tense_index = loaded_state["active_tense_index"]
+            st.session_state.active_card_step = loaded_state["active_card_step"]
+            st.session_state.completed_tenses = set(loaded_state["completed_tenses"])
+            st.session_state.completed_card_steps = set(loaded_state["completed_card_steps"])
+            st.session_state.chat_history = loaded_state["chat_history"]
+            st.session_state.session_loaded_msg = f"Resumed study session: {loaded_state['topic']}"
+        else:
+            st.session_state.session_id = url_sid
+    else:
+        st.session_state.session_id = session_manager.generate_session_id()
+
+if "session_id" in st.session_state:
+    st.query_params["sid"] = st.session_state.session_id
 
 # Initialize Session State
 if "api_key" not in st.session_state:
@@ -191,6 +234,25 @@ if "micro_practice_result" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+# Synchronize session ID with browser localStorage to preserve state across browser restarts
+components.html(f"""
+<script>
+  try {{
+    const pLoc = window.parent.location;
+    const sp = new URLSearchParams(pLoc.search);
+    const sid = sp.get('sid');
+    if (!sid) {{
+      const cached = window.localStorage.getItem('lingocraft_sid');
+      if (cached && cached.startsWith('lingo-')) {{
+        pLoc.search = '?sid=' + encodeURIComponent(cached);
+      }}
+    }} else {{
+      window.localStorage.setItem('lingocraft_sid', '{st.session_state.session_id}');
+    }}
+  }} catch(e) {{}}
+</script>
+""", height=0, width=0)
+
 # Initialize Orchestrator
 orchestrator = LingoCraftOrchestrator(api_key=st.session_state.api_key)
 
@@ -212,6 +274,80 @@ with st.sidebar:
 
     if not st.session_state.api_key:
         st.info("💡 Using **Curated Offline Mastery Packs**. Enter a Gemini API Key above for custom topics!")
+
+    # Study Session & Resume Widget
+    with st.expander("💾 Study Session & Resume", expanded=False):
+        st.markdown(f"**Session Code:** `{st.session_state.session_id}`")
+        st.caption("✅ Auto-saving active. Your progress is saved as you study.")
+
+        col_new_s, col_save_s = st.columns(2)
+        with col_new_s:
+            if st.button("➕ New Session", help="Start fresh with a new session code", use_container_width=True):
+                new_sid = session_manager.generate_session_id()
+                st.session_state.session_id = new_sid
+                st.query_params["sid"] = new_sid
+                st.session_state.active_tense_index = 0
+                st.session_state.active_card_step = 1
+                st.session_state.completed_card_steps = set()
+                st.session_state.completed_tenses = set()
+                st.session_state.current_pack = None
+                st.session_state.speech_eval_result = None
+                st.session_state.quiz_eval_result = None
+                st.session_state.main_tab = MAIN_TAB_LEARN
+                auto_save_current_session()
+                st.rerun()
+        with col_save_s:
+            if st.button("💾 Save State", use_container_width=True):
+                auto_save_current_session()
+                st.toast("Progress saved to database!", icon="💾")
+
+        code_to_load = st.text_input("Resume by Session Code:", placeholder="e.g. lingo-123456", key="load_sid_input")
+        if st.button("Load Session", use_container_width=True):
+            if code_to_load.strip():
+                loaded = session_manager.load_session(code_to_load.strip())
+                if loaded:
+                    st.session_state.session_id = code_to_load.strip()
+                    st.query_params["sid"] = code_to_load.strip()
+                    st.session_state.current_curriculum = loaded["current_curriculum"]
+                    st.session_state.active_tense_index = loaded["active_tense_index"]
+                    st.session_state.active_card_step = loaded["active_card_step"]
+                    st.session_state.completed_tenses = set(loaded["completed_tenses"])
+                    st.session_state.completed_card_steps = set(loaded["completed_card_steps"])
+                    st.session_state.chat_history = loaded["chat_history"]
+                    st.session_state.current_pack = None
+                    st.session_state.speech_eval_result = None
+                    st.session_state.quiz_eval_result = None
+                    st.session_state.main_tab = MAIN_TAB_LEARN
+                    st.session_state.session_loaded_msg = f"Loaded session: {loaded['topic']}"
+                    st.rerun()
+                else:
+                    st.error("Session code not found.")
+
+        recents = session_manager.list_recent_sessions(limit=5)
+        other_recents = [r for r in recents if r["session_id"] != st.session_state.session_id]
+        if other_recents:
+            st.markdown("---")
+            st.markdown("##### 🕒 Recent Study Sessions:")
+            for r in other_recents:
+                t_str = time.strftime("%b %d, %H:%M", time.localtime(r["updated_at"]))
+                c_lbl = f"{r['topic'][:18]}... ({r['completed_count']}/{r['total_tenses']})"
+                if st.button(f"▶️ {c_lbl}", key=f"rec_btn_{r['session_id']}", help=f"Code: {r['session_id']} | Updated: {t_str}", use_container_width=True):
+                    loaded = session_manager.load_session(r["session_id"])
+                    if loaded:
+                        st.session_state.session_id = r["session_id"]
+                        st.query_params["sid"] = r["session_id"]
+                        st.session_state.current_curriculum = loaded["current_curriculum"]
+                        st.session_state.active_tense_index = loaded["active_tense_index"]
+                        st.session_state.active_card_step = loaded["active_card_step"]
+                        st.session_state.completed_tenses = set(loaded["completed_tenses"])
+                        st.session_state.completed_card_steps = set(loaded["completed_card_steps"])
+                        st.session_state.chat_history = loaded["chat_history"]
+                        st.session_state.current_pack = None
+                        st.session_state.speech_eval_result = None
+                        st.session_state.quiz_eval_result = None
+                        st.session_state.main_tab = MAIN_TAB_LEARN
+                        st.session_state.session_loaded_msg = f"Resumed: {loaded['topic']}"
+                        st.rerun()
 
     st.markdown("---")
     st.subheader("📚 Topic & Language Pair")
@@ -254,6 +390,7 @@ with st.sidebar:
             st.session_state.speech_eval_result = None
             st.session_state.quiz_eval_result = None
             st.session_state.main_tab = MAIN_TAB_LEARN
+            auto_save_current_session()
             st.rerun()
 
     else:
@@ -273,6 +410,7 @@ with st.sidebar:
                 st.session_state.speech_eval_result = None
                 st.session_state.quiz_eval_result = None
                 st.session_state.main_tab = MAIN_TAB_LEARN
+                auto_save_current_session()
                 st.success("Roadmap successfully initialized!")
                 st.rerun()
 
@@ -320,11 +458,17 @@ with st.sidebar:
         st.session_state.speech_eval_result = None
         st.session_state.quiz_eval_result = None
         st.session_state.main_tab = MAIN_TAB_LEARN
+        auto_save_current_session()
         st.rerun()
+
+# Display session loaded notification toast if set
+if st.session_state.get("session_loaded_msg"):
+    st.toast(f"💾 {st.session_state.session_loaded_msg}", icon="✅")
+    st.session_state.session_loaded_msg = None
 
 # Main Area Layout
 st.markdown('<div class="main-title">🎓 LingoCraft AI</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Interactive, empathetic, tense-by-tense foreign language coach using an enhanced 5-stage flashcard system.</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="sub-title">Interactive, empathetic, tense-by-tense foreign language coach using an enhanced 5-stage flashcard system. <span style="font-size: 0.85rem; background-color: #EFF6FF; color: #1E40AF; padding: 2px 8px; border-radius: 6px; border: 1px solid #BFDBFE; margin-left: 8px;">💾 Session: <code>{st.session_state.session_id}</code></span></div>', unsafe_allow_html=True)
 
 # Main Navigation Tabs
 tab_learn, tab_coach, tab_curriculum = st.tabs(
@@ -864,3 +1008,7 @@ with tab_learn:
                     st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
+# Persist current session snapshot to SQLite
+auto_save_current_session()
+
