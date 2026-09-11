@@ -582,321 +582,6 @@ def _speech_practice_fragment(current_tense_name: str, pack, target_l: str, nati
                 st.warning(f"🔄 **Immediate micro-practice:** {res.get('micro_practice_drill')}")
 
 
-@st.fragment
-def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
-    """
-    Isolated Streamlit fragment for flashcard study (stepper and card content).
-    Interactions here execute in-place without triggering a full page rerun by default.
-    """
-    step_names = [
-        "1. Concept & rule",
-        "2. Bilingual example",
-        "3. Pronunciation guide",
-        "4. Speech validation",
-        "5. Conjugation quiz"
-    ]
-    # Step 1: Interactive Stepper (allows jumping directly to any card)
-    step_cols = st.columns(5)
-    for s_idx, col in enumerate(step_cols):
-        with col:
-            step_num = s_idx + 1
-            is_active = (step_num == st.session_state.active_card_step)
-            is_completed = (step_num in st.session_state.completed_card_steps)
-            icon = "🎯 " if is_active else ("✓ " if is_completed else "")
-            btn_type = "primary" if is_active else "secondary"
-            if st.button(f"{icon}{step_names[s_idx]}", key=f"stepper_{current_tense_name}_{step_num}", use_container_width=True, type=btn_type):
-                st.session_state.active_card_step = step_num
-                auto_save_current_session()
-                log_ve_event("stepper_card_jump", "click", {"step": step_num})
-                st.rerun(scope="fragment")
-
-    target_l = st.session_state.current_curriculum.get("target_language", "Target Language")
-    native_l = st.session_state.current_curriculum.get("native_language", "Native Language")
-
-    # -------------------------------------------------------------
-    # STAGE 1: CONCEPT & RULE
-    # -------------------------------------------------------------
-    if st.session_state.active_card_step == 1:
-        st.markdown(f"## {pack.card1_concept.title}")
-
-        st.markdown("#### 📌 Grammatical rule & structure")
-        st.markdown(pack.card1_concept.rule)
-
-        st.markdown("#### 🌍 Real-world usage context")
-        st.markdown(pack.card1_concept.usage_context)
-
-        with st.expander("🔑 Linguistic Triggers & Keywords", expanded=True):
-            trigger_pills = " ".join([f"<span style='display:inline-block; background-color:#F1F3F4; color:#202124; padding:3px 10px; border-radius:16px; margin:2px 4px; font-family:monospace; font-size:0.875rem; border:1px solid #DADCE0;'>{trig}</span>" for trig in pack.card1_concept.triggers])
-            st.markdown(trigger_pills, unsafe_allow_html=True)
-
-        render_incontext_coach(current_tense_name, 1, pack, target_l, native_l)
-
-        st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_space, col_next = st.columns([3, 1.4])
-        with col_next:
-            if st.button("Next: bilingual example ➔", key="next_c1", use_container_width=True, type="primary"):
-                st.session_state.completed_card_steps.add(1)
-                st.session_state.active_card_step = 2
-                auto_save_current_session()
-                st.rerun(scope="fragment")
-
-    # -------------------------------------------------------------
-    # STAGE 2: BILINGUAL EXAMPLE
-    # -------------------------------------------------------------
-    elif st.session_state.active_card_step == 2:
-        st.markdown("## Real-World Comparative Phrase")
-
-        st.markdown(f"#### 🎯 Target language ({target_l}):")
-        st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#174EA6; background-color:#E8F0FE; padding:16px; border-radius:12px; border-left:5px solid #1A73E8;'>{pack.card2_example.target_sentence}</div>", unsafe_allow_html=True)
-
-        target_lang_code = st.session_state.current_curriculum.get("target_language_code", "es")
-        clean_audio_target = pack.card2_example.target_sentence.replace("**", "").replace("*", "")
-        st.markdown("##### 🎧 Listen to phrase:")
-        col_c2_a1, col_c2_a2 = st.columns(2)
-        with col_c2_a1:
-            st.caption("🔊 Normal speed (1.0x)")
-            c2_audio_norm = generate_tts_audio(clean_audio_target, lang=target_lang_code, slow=False)
-            if c2_audio_norm:
-                st.audio(c2_audio_norm, format="audio/mp3")
-        with col_c2_a2:
-            st.caption("🐢 Practice pace (0.75x)")
-            c2_audio_slow = generate_tts_audio(clean_audio_target, lang=target_lang_code, slow=True)
-            if c2_audio_slow:
-                st.audio(c2_audio_slow, format="audio/mp3")
-
-        st.markdown(f"#### 🌐 Translation / Meaning ({native_l}):")
-        st.markdown(f"<div style='font-size:1.125rem; color:#202124; background-color:#F8F9FA; padding:14px; border-radius:12px; margin-top:8px; border:1px solid #DADCE0;'>{pack.card2_example.native_sentence}</div>", unsafe_allow_html=True)
-
-        with st.expander("🔍 Grammatical Structure & Breakdown", expanded=True):
-            st.markdown(pack.card2_example.breakdown)
-
-        render_incontext_coach(current_tense_name, 2, pack, target_l, native_l)
-
-        st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_prev, col_next = st.columns([1.2, 1.4])
-        with col_prev:
-            if st.button("⬅ Back to concept", key="back_c2", use_container_width=True):
-                st.session_state.active_card_step = 1
-                auto_save_current_session()
-                st.rerun(scope="fragment")
-        with col_next:
-            if st.button("Next: pronunciation guide ➔", key="next_c2", use_container_width=True, type="primary"):
-                st.session_state.completed_card_steps.add(2)
-                st.session_state.active_card_step = 3
-                auto_save_current_session()
-                st.rerun(scope="fragment")
-
-
-    # -------------------------------------------------------------
-    # STAGE 3: PRONUNCIATION GUIDE
-    # -------------------------------------------------------------
-    elif st.session_state.active_card_step == 3:
-        st.markdown("## Phonetic Breakdown & Native Audio")
-
-        st.markdown(f"### Key verb / phrase: **{pack.card3_pronunciation.word}**")
-
-        st.markdown("#### 🗣️ Syllables & stress pattern:")
-        st.markdown(f"<div class='phonetic-box'>{pack.card3_pronunciation.phonetic_breakdown}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='margin-bottom:12px;'><span style='background-color:#E8F0FE; color:#174EA6; font-weight:600; padding:4px 12px; border-radius:9999px; font-size:0.875rem; border:1px solid #C2E7FF;'>Primary stress: {pack.card3_pronunciation.stressed_syllables}</span></div>", unsafe_allow_html=True)
-
-        st.markdown("#### 🎧 Spoken audio (zero-latency cached):")
-        target_lang_code = st.session_state.current_curriculum.get("target_language_code", "es")
-        col_c3_a1, col_c3_a2 = st.columns(2)
-        with col_c3_a1:
-            st.caption("🔊 Normal speed (1.0x)")
-            c3_audio_norm = generate_tts_audio(pack.card3_pronunciation.audio_text, lang=target_lang_code, slow=False)
-            if c3_audio_norm:
-                st.audio(c3_audio_norm, format="audio/mp3")
-        with col_c3_a2:
-            st.caption("🐢 Practice pace (0.75x)")
-            c3_audio_slow = generate_tts_audio(pack.card3_pronunciation.audio_text, lang=target_lang_code, slow=True)
-            if c3_audio_slow:
-                st.audio(c3_audio_slow, format="audio/mp3")
-
-        with st.expander("🗣️ Articulation & Vocal Coaching Tips", expanded=False):
-            st.markdown(pack.card3_pronunciation.phonetic_tips)
-
-        render_incontext_coach(current_tense_name, 3, pack, target_l, native_l)
-
-        st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_prev, col_next = st.columns([1.2, 1.4])
-        with col_prev:
-            if st.button("⬅ Back to example", key="back_c3", use_container_width=True):
-                st.session_state.active_card_step = 2
-                auto_save_current_session()
-                st.rerun(scope="fragment")
-        with col_next:
-            if st.button("Next: speech validation ➔", key="next_c3", use_container_width=True, type="primary"):
-                st.session_state.completed_card_steps.add(3)
-                st.session_state.active_card_step = 4
-                st.session_state.speech_eval_result = None
-                auto_save_current_session()
-                st.rerun(scope="fragment")
-
-    # -------------------------------------------------------------
-    # STAGE 4: SPEECH VALIDATION
-    # -------------------------------------------------------------
-    elif st.session_state.active_card_step == 4:
-        st.markdown("## Voice Practice & Speech Evaluation")
-
-        st.markdown("Speak this sentence aloud:")
-        target_display = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', pack.card4_speech.target_phrase)
-        st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#174EA6; background-color:#E8F0FE; padding:16px; border-radius:12px; border-left:5px solid #1A73E8;'>{target_display}</div>", unsafe_allow_html=True)
-
-        st.markdown(f"*Expected phonetic flow: `{pack.card4_speech.expected_phonetics}`*")
-        st.caption(f"Focus sounds: {pack.card4_speech.key_focus_sounds}")
-
-        _speech_practice_fragment(current_tense_name, pack, target_l, native_l)
-
-        render_incontext_coach(current_tense_name, 4, pack, target_l, native_l)
-
-        st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_prev, col_next = st.columns([1.2, 1.4])
-        with col_prev:
-            if st.button("⬅ Back to pronunciation", key="back_c4", use_container_width=True):
-                st.session_state.active_card_step = 3
-                auto_save_current_session()
-                st.rerun(scope="fragment")
-        with col_next:
-            if st.button("Next: conjugation quiz ➔", key="next_c4", use_container_width=True, type="primary"):
-                st.session_state.completed_card_steps.add(4)
-                st.session_state.active_card_step = 5
-                st.session_state.quiz_eval_result = None
-                st.session_state.micro_practice_result = None
-                auto_save_current_session()
-                st.rerun(scope="fragment")
-
-    # -------------------------------------------------------------
-    # STAGE 5: CONJUGATION QUIZ (Shuffled Options & No Pre-selection)
-    # -------------------------------------------------------------
-    elif st.session_state.active_card_step == 5:
-        st.markdown("## Master Tense Conjugation Challenge")
-
-        st.markdown("#### Fill in the blank with the correct form:")
-        st.markdown(f"<div style='font-size:1.3rem; font-weight:500; color:#202124; background-color:#F8F9FA; padding:18px; border-radius:12px; border:1px solid #DADCE0;'>{pack.card5_quiz.sentence_prompt}</div>", unsafe_allow_html=True)
-
-        # Shuffle options persistently for this tense pack so option A is NOT always correct
-        quiz_shuffle_key = f"quiz_shuffled_{current_tense_name}"
-        if quiz_shuffle_key not in st.session_state:
-            opts = list(pack.card5_quiz.options)
-            random.seed(len(current_tense_name) * 42)
-            random.shuffle(opts)
-            st.session_state[quiz_shuffle_key] = opts
-
-        display_options = st.session_state[quiz_shuffle_key]
-
-        # index=None forces user to actively pick an option (no spoilers)
-        quiz_choice = st.radio(
-            "Choose the correct answer:",
-            display_options,
-            index=None,
-            key=f"quiz_radio_{current_tense_name}"
-        )
-
-        col_submit, col_skip_t = st.columns([2, 1])
-        with col_submit:
-            if st.button("Submit answer 🚀", type="primary", use_container_width=True):
-                if quiz_choice is None:
-                    st.warning("⚠️ Select an answer before submitting.")
-                else:
-                    log_ve_event("quiz_submit", "submit", {"choice": quiz_choice})
-                    with st.spinner("Evaluating your answer with LingoCraft AI..."):
-                        eval_res = orchestrator.evaluate_quiz(
-                            quiz_data=pack.card5_quiz,
-                            selected_option=quiz_choice,
-                            target_lang=target_l,
-                            native_lang=native_l
-                        )
-                        st.session_state.quiz_eval_result = eval_res
-                        st.session_state.micro_practice_result = None
-
-        with col_skip_t:
-            if st.button("⏩ Skip and mark tense complete", key="skip_quiz", use_container_width=True):
-                st.session_state.completed_card_steps.add(5)
-                st.session_state.completed_tenses.add(st.session_state.active_tense_index)
-                st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
-                st.session_state.active_tense_index += 1
-                st.session_state.active_card_step = 1
-                st.session_state.completed_card_steps = set()
-                st.session_state.current_pack = None
-                st.session_state.speech_eval_result = None
-                st.session_state.quiz_eval_result = None
-                auto_save_current_session()
-                st.rerun(scope="app")
-
-        # Display Quiz Feedback
-        if st.session_state.quiz_eval_result:
-            qres = st.session_state.quiz_eval_result
-            if qres["is_correct"]:
-                award_xp(20, f"quiz_solved_{current_tense_name}", "Conjugation challenge passed")
-                st.session_state.completed_card_steps.add(5)
-                st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
-                st.markdown(f"<div class='feedback-box-success' role='status' aria-live='polite'><h3>{qres.get('headline')}</h3><p>{qres.get('feedback')}</p></div>", unsafe_allow_html=True)
-                st.markdown("<br>", unsafe_allow_html=True)
-
-                # Advance to Next Tense Button
-                if st.button("🏆 Complete tense and advance to next ➔", type="primary", use_container_width=True):
-                    award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
-                    st.session_state.completed_tenses.add(st.session_state.active_tense_index)
-                    st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
-                    st.session_state.active_tense_index += 1
-                    st.session_state.active_card_step = 1
-                    st.session_state.completed_card_steps = set()
-                    st.session_state.current_pack = None
-                    st.session_state.speech_eval_result = None
-                    st.session_state.quiz_eval_result = None
-                    auto_save_current_session()
-                    st.rerun(scope="app")
-
-            else:
-                st.session_state.needs_review_tenses.add(st.session_state.active_tense_index)
-                st.markdown(f"<div class='feedback-box-error' role='alert' aria-live='assertive'><h3>{qres.get('headline')}</h3><p>{qres.get('feedback')}</p><p><strong>Why this mistake is common:</strong> {qres.get('why_common_mistake')}</p></div>", unsafe_allow_html=True)
-                st.markdown("<p style='font-size:0.8125rem; color:#B06000; margin-top:6px;'>🔄 <em>This tense has been flagged as <strong>Needs review</strong> in your roadmap.</em></p>", unsafe_allow_html=True)
-
-                # Immediate Micro-Practice Drill
-                if qres.get("micro_practice_prompt"):
-                    st.markdown("---")
-                    st.markdown("### 🛠️ Immediate micro-practice drill")
-                    st.markdown(f"**{qres.get('micro_practice_prompt')}**")
-                    mp_options = qres.get("micro_practice_options", [])
-                    if mp_options:
-                        user_mp_choice = st.radio("Select the micro-practice answer:", mp_options, index=None, key=f"mp_radio_{current_tense_name}")
-                        if st.button("Verify micro-practice"):
-                            if user_mp_choice is None:
-                                st.warning("⚠️ Select an option first.")
-                            else:
-                                correct_mp_idx = qres.get("micro_practice_correct_index", 0)
-                                if 0 <= correct_mp_idx < len(mp_options) and user_mp_choice == mp_options[correct_mp_idx]:
-                                    st.success(f"¡Bien hecho! {qres.get('micro_practice_explanation')}")
-                                    st.session_state.micro_practice_result = True
-                                    award_xp(15, f"resilience_{current_tense_name}", "Resilience bonus: Review drill cleared")
-                                else:
-                                    st.error("Not quite yet. Remember the core rule and try once more.")
-
-                    if st.session_state.micro_practice_result:
-                        if st.button("Now advance to next tense ➔", type="primary"):
-                            award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
-                            st.session_state.completed_card_steps.add(5)
-                            st.session_state.completed_tenses.add(st.session_state.active_tense_index)
-                            st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
-                            st.session_state.active_tense_index += 1
-                            st.session_state.active_card_step = 1
-                            st.session_state.completed_card_steps = set()
-                            st.session_state.current_pack = None
-                            st.session_state.speech_eval_result = None
-                            st.session_state.quiz_eval_result = None
-                            auto_save_current_session()
-                            st.rerun(scope="app")
-
-        render_incontext_coach(current_tense_name, 5, pack, target_l, native_l)
-
-        st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_prev, col_space = st.columns([1.2, 4])
-        with col_prev:
-            if st.button("⬅ Back to speech validation", key="back_c5", use_container_width=True):
-                st.session_state.active_card_step = 4
-                auto_save_current_session()
-                st.rerun(scope="fragment")
 
 # Resolve Session ID from URL query parameters (?sid=...) or restore active session
 url_sid = st.query_params.get("sid", "").strip()
@@ -1641,6 +1326,16 @@ with tab_learn:
 
         pack = st.session_state.current_pack
 
+        # Step title lookup
+        step_names = [
+            "1. Concept & rule",
+            "2. Bilingual example",
+            "3. Pronunciation guide",
+            "4. Speech validation",
+            "5. Conjugation quiz"
+        ]
+        active_step_idx = st.session_state.active_card_step - 1
+        active_step_label = step_names[active_step_idx] if 0 <= active_step_idx < len(step_names) else ""
 
         # Topic indicator & Stage Header
         topic_title = st.session_state.current_curriculum.get("topic", "Curriculum")
@@ -1663,7 +1358,308 @@ with tab_learn:
                 auto_save_current_session()
                 st.rerun()
 
-        _flashcard_study_fragment(pack, current_tense_name, total_tenses)
+        # Step 1: Interactive Stepper (allows jumping directly to any card)
+        step_cols = st.columns(5)
+        for s_idx, col in enumerate(step_cols):
+            with col:
+                step_num = s_idx + 1
+                is_active = (step_num == st.session_state.active_card_step)
+                is_completed = (step_num in st.session_state.completed_card_steps)
+                icon = "🎯 " if is_active else ("✓ " if is_completed else "")
+                btn_type = "primary" if is_active else "secondary"
+                if st.button(f"{icon}{step_names[s_idx]}", key=f"stepper_{current_tense_name}_{step_num}", use_container_width=True, type=btn_type):
+                    st.session_state.active_card_step = step_num
+                    auto_save_current_session()
+                    log_ve_event("stepper_card_jump", "click", {"step": step_num})
+                    st.rerun()
+
+        target_l = st.session_state.current_curriculum.get("target_language", "Target Language")
+        native_l = st.session_state.current_curriculum.get("native_language", "Native Language")
+
+        # -------------------------------------------------------------
+        # STAGE 1: CONCEPT & RULE
+        # -------------------------------------------------------------
+        if st.session_state.active_card_step == 1:
+            st.markdown(f"## {pack.card1_concept.title}")
+
+            st.markdown("#### 📌 Grammatical rule & structure")
+            st.markdown(pack.card1_concept.rule)
+
+            st.markdown("#### 🌍 Real-world usage context")
+            st.markdown(pack.card1_concept.usage_context)
+
+            with st.expander("🔑 Linguistic Triggers & Keywords", expanded=True):
+                trigger_pills = " ".join([f"<span style='display:inline-block; background-color:#F1F3F4; color:#202124; padding:3px 10px; border-radius:16px; margin:2px 4px; font-family:monospace; font-size:0.875rem; border:1px solid #DADCE0;'>{trig}</span>" for trig in pack.card1_concept.triggers])
+                st.markdown(trigger_pills, unsafe_allow_html=True)
+
+            render_incontext_coach(current_tense_name, 1, pack, target_l, native_l)
+
+            st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
+            col_space, col_next = st.columns([3, 1.4])
+            with col_next:
+                if st.button("Next: bilingual example ➔", key="next_c1", use_container_width=True, type="primary"):
+                    st.session_state.completed_card_steps.add(1)
+                    st.session_state.active_card_step = 2
+                    auto_save_current_session()
+                    st.rerun()
+
+        # -------------------------------------------------------------
+        # STAGE 2: BILINGUAL EXAMPLE
+        # -------------------------------------------------------------
+        elif st.session_state.active_card_step == 2:
+            st.markdown("## Real-World Comparative Phrase")
+
+            st.markdown(f"#### 🎯 Target language ({target_l}):")
+            st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#174EA6; background-color:#E8F0FE; padding:16px; border-radius:12px; border-left:5px solid #1A73E8;'>{pack.card2_example.target_sentence}</div>", unsafe_allow_html=True)
+
+            target_lang_code = st.session_state.current_curriculum.get("target_language_code", "es")
+            clean_audio_target = pack.card2_example.target_sentence.replace("**", "").replace("*", "")
+            st.markdown("##### 🎧 Listen to phrase:")
+            col_c2_a1, col_c2_a2 = st.columns(2)
+            with col_c2_a1:
+                st.caption("🔊 Normal speed (1.0x)")
+                c2_audio_norm = generate_tts_audio(clean_audio_target, lang=target_lang_code, slow=False)
+                if c2_audio_norm:
+                    st.audio(c2_audio_norm, format="audio/mp3")
+            with col_c2_a2:
+                st.caption("🐢 Practice pace (0.75x)")
+                c2_audio_slow = generate_tts_audio(clean_audio_target, lang=target_lang_code, slow=True)
+                if c2_audio_slow:
+                    st.audio(c2_audio_slow, format="audio/mp3")
+
+            st.markdown(f"#### 🌐 Translation / Meaning ({native_l}):")
+            st.markdown(f"<div style='font-size:1.125rem; color:#202124; background-color:#F8F9FA; padding:14px; border-radius:12px; margin-top:8px; border:1px solid #DADCE0;'>{pack.card2_example.native_sentence}</div>", unsafe_allow_html=True)
+
+            with st.expander("🔍 Grammatical Structure & Breakdown", expanded=True):
+                st.markdown(pack.card2_example.breakdown)
+
+            render_incontext_coach(current_tense_name, 2, pack, target_l, native_l)
+
+            st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
+            col_prev, col_next = st.columns([1.2, 1.4])
+            with col_prev:
+                if st.button("⬅ Back to concept", key="back_c2", use_container_width=True):
+                    st.session_state.active_card_step = 1
+                    auto_save_current_session()
+                    st.rerun()
+            with col_next:
+                if st.button("Next: pronunciation guide ➔", key="next_c2", use_container_width=True, type="primary"):
+                    st.session_state.completed_card_steps.add(2)
+                    st.session_state.active_card_step = 3
+                    auto_save_current_session()
+                    st.rerun()
+
+
+        # -------------------------------------------------------------
+        # STAGE 3: PRONUNCIATION GUIDE
+        # -------------------------------------------------------------
+        elif st.session_state.active_card_step == 3:
+            st.markdown("## Phonetic Breakdown & Native Audio")
+
+            st.markdown(f"### Key verb / phrase: **{pack.card3_pronunciation.word}**")
+
+            st.markdown("#### 🗣️ Syllables & stress pattern:")
+            st.markdown(f"<div class='phonetic-box'>{pack.card3_pronunciation.phonetic_breakdown}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-bottom:12px;'><span style='background-color:#E8F0FE; color:#174EA6; font-weight:600; padding:4px 12px; border-radius:9999px; font-size:0.875rem; border:1px solid #C2E7FF;'>Primary stress: {pack.card3_pronunciation.stressed_syllables}</span></div>", unsafe_allow_html=True)
+
+            st.markdown("#### 🎧 Spoken audio (zero-latency cached):")
+            target_lang_code = st.session_state.current_curriculum.get("target_language_code", "es")
+            col_c3_a1, col_c3_a2 = st.columns(2)
+            with col_c3_a1:
+                st.caption("🔊 Normal speed (1.0x)")
+                c3_audio_norm = generate_tts_audio(pack.card3_pronunciation.audio_text, lang=target_lang_code, slow=False)
+                if c3_audio_norm:
+                    st.audio(c3_audio_norm, format="audio/mp3")
+            with col_c3_a2:
+                st.caption("🐢 Practice pace (0.75x)")
+                c3_audio_slow = generate_tts_audio(pack.card3_pronunciation.audio_text, lang=target_lang_code, slow=True)
+                if c3_audio_slow:
+                    st.audio(c3_audio_slow, format="audio/mp3")
+
+            with st.expander("🗣️ Articulation & Vocal Coaching Tips", expanded=False):
+                st.markdown(pack.card3_pronunciation.phonetic_tips)
+
+            render_incontext_coach(current_tense_name, 3, pack, target_l, native_l)
+
+            st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
+            col_prev, col_next = st.columns([1.2, 1.4])
+            with col_prev:
+                if st.button("⬅ Back to example", key="back_c3", use_container_width=True):
+                    st.session_state.active_card_step = 2
+                    auto_save_current_session()
+                    st.rerun()
+            with col_next:
+                if st.button("Next: speech validation ➔", key="next_c3", use_container_width=True, type="primary"):
+                    st.session_state.completed_card_steps.add(3)
+                    st.session_state.active_card_step = 4
+                    st.session_state.speech_eval_result = None
+                    auto_save_current_session()
+                    st.rerun()
+
+        # -------------------------------------------------------------
+        # STAGE 4: SPEECH VALIDATION
+        # -------------------------------------------------------------
+        elif st.session_state.active_card_step == 4:
+            st.markdown("## Voice Practice & Speech Evaluation")
+
+            st.markdown("Speak this sentence aloud:")
+            target_display = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', pack.card4_speech.target_phrase)
+            st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#174EA6; background-color:#E8F0FE; padding:16px; border-radius:12px; border-left:5px solid #1A73E8;'>{target_display}</div>", unsafe_allow_html=True)
+
+            st.markdown(f"*Expected phonetic flow: `{pack.card4_speech.expected_phonetics}`*")
+            st.caption(f"Focus sounds: {pack.card4_speech.key_focus_sounds}")
+
+            _speech_practice_fragment(current_tense_name, pack, target_l, native_l)
+
+            render_incontext_coach(current_tense_name, 4, pack, target_l, native_l)
+
+            st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
+            col_prev, col_next = st.columns([1.2, 1.4])
+            with col_prev:
+                if st.button("⬅ Back to pronunciation", key="back_c4", use_container_width=True):
+                    st.session_state.active_card_step = 3
+                    auto_save_current_session()
+                    st.rerun()
+            with col_next:
+                if st.button("Next: conjugation quiz ➔", key="next_c4", use_container_width=True, type="primary"):
+                    st.session_state.completed_card_steps.add(4)
+                    st.session_state.active_card_step = 5
+                    st.session_state.quiz_eval_result = None
+                    st.session_state.micro_practice_result = None
+                    auto_save_current_session()
+                    st.rerun()
+
+        # -------------------------------------------------------------
+        # STAGE 5: CONJUGATION QUIZ (Shuffled Options & No Pre-selection)
+        # -------------------------------------------------------------
+        elif st.session_state.active_card_step == 5:
+            st.markdown("## Master Tense Conjugation Challenge")
+
+            st.markdown("#### Fill in the blank with the correct form:")
+            st.markdown(f"<div style='font-size:1.3rem; font-weight:500; color:#202124; background-color:#F8F9FA; padding:18px; border-radius:12px; border:1px solid #DADCE0;'>{pack.card5_quiz.sentence_prompt}</div>", unsafe_allow_html=True)
+
+            # Shuffle options persistently for this tense pack so option A is NOT always correct
+            quiz_shuffle_key = f"quiz_shuffled_{current_tense_name}"
+            if quiz_shuffle_key not in st.session_state:
+                opts = list(pack.card5_quiz.options)
+                random.seed(len(current_tense_name) * 42)
+                random.shuffle(opts)
+                st.session_state[quiz_shuffle_key] = opts
+
+            display_options = st.session_state[quiz_shuffle_key]
+
+            # index=None forces user to actively pick an option (no spoilers)
+            quiz_choice = st.radio(
+                "Choose the correct answer:",
+                display_options,
+                index=None,
+                key=f"quiz_radio_{current_tense_name}"
+            )
+
+            col_submit, col_skip_t = st.columns([2, 1])
+            with col_submit:
+                if st.button("Submit answer 🚀", type="primary", use_container_width=True):
+                    if quiz_choice is None:
+                        st.warning("⚠️ Select an answer before submitting.")
+                    else:
+                        log_ve_event("quiz_submit", "submit", {"choice": quiz_choice})
+                        with st.spinner("Evaluating your answer with LingoCraft AI..."):
+                            eval_res = orchestrator.evaluate_quiz(
+                                quiz_data=pack.card5_quiz,
+                                selected_option=quiz_choice,
+                                target_lang=target_l,
+                                native_lang=native_l
+                            )
+                            st.session_state.quiz_eval_result = eval_res
+                            st.session_state.micro_practice_result = None
+
+            with col_skip_t:
+                if st.button("⏩ Skip and mark tense complete", key="skip_quiz", use_container_width=True):
+                    st.session_state.completed_card_steps.add(5)
+                    st.session_state.completed_tenses.add(st.session_state.active_tense_index)
+                    st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
+                    st.session_state.active_tense_index += 1
+                    st.session_state.active_card_step = 1
+                    st.session_state.completed_card_steps = set()
+                    st.session_state.current_pack = None
+                    st.session_state.speech_eval_result = None
+                    st.session_state.quiz_eval_result = None
+                    auto_save_current_session()
+                    st.rerun()
+
+            # Display Quiz Feedback
+            if st.session_state.quiz_eval_result:
+                qres = st.session_state.quiz_eval_result
+                if qres["is_correct"]:
+                    award_xp(20, f"quiz_solved_{current_tense_name}", "Conjugation challenge passed")
+                    st.session_state.completed_card_steps.add(5)
+                    st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
+                    st.markdown(f"<div class='feedback-box-success' role='status' aria-live='polite'><h3>{qres.get('headline')}</h3><p>{qres.get('feedback')}</p></div>", unsafe_allow_html=True)
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # Advance to Next Tense Button
+                    if st.button("🏆 Complete tense and advance to next ➔", type="primary", use_container_width=True):
+                        award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
+                        st.session_state.completed_tenses.add(st.session_state.active_tense_index)
+                        st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
+                        st.session_state.active_tense_index += 1
+                        st.session_state.active_card_step = 1
+                        st.session_state.completed_card_steps = set()
+                        st.session_state.current_pack = None
+                        st.session_state.speech_eval_result = None
+                        st.session_state.quiz_eval_result = None
+                        auto_save_current_session()
+                        st.rerun()
+
+                else:
+                    st.session_state.needs_review_tenses.add(st.session_state.active_tense_index)
+                    st.markdown(f"<div class='feedback-box-error' role='alert' aria-live='assertive'><h3>{qres.get('headline')}</h3><p>{qres.get('feedback')}</p><p><strong>Why this mistake is common:</strong> {qres.get('why_common_mistake')}</p></div>", unsafe_allow_html=True)
+                    st.markdown("<p style='font-size:0.8125rem; color:#B06000; margin-top:6px;'>🔄 <em>This tense has been flagged as <strong>Needs review</strong> in your roadmap.</em></p>", unsafe_allow_html=True)
+
+                    # Immediate Micro-Practice Drill
+                    if qres.get("micro_practice_prompt"):
+                        st.markdown("---")
+                        st.markdown("### 🛠️ Immediate micro-practice drill")
+                        st.markdown(f"**{qres.get('micro_practice_prompt')}**")
+                        mp_options = qres.get("micro_practice_options", [])
+                        if mp_options:
+                            user_mp_choice = st.radio("Select the micro-practice answer:", mp_options, index=None, key=f"mp_radio_{current_tense_name}")
+                            if st.button("Verify micro-practice"):
+                                if user_mp_choice is None:
+                                    st.warning("⚠️ Select an option first.")
+                                else:
+                                    correct_mp_idx = qres.get("micro_practice_correct_index", 0)
+                                    if 0 <= correct_mp_idx < len(mp_options) and user_mp_choice == mp_options[correct_mp_idx]:
+                                        st.success(f"¡Bien hecho! {qres.get('micro_practice_explanation')}")
+                                        st.session_state.micro_practice_result = True
+                                        award_xp(15, f"resilience_{current_tense_name}", "Resilience bonus: Review drill cleared")
+                                    else:
+                                        st.error("Not quite yet. Remember the core rule and try once more.")
+
+                        if st.session_state.micro_practice_result:
+                            if st.button("Now advance to next tense ➔", type="primary"):
+                                award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
+                                st.session_state.completed_card_steps.add(5)
+                                st.session_state.completed_tenses.add(st.session_state.active_tense_index)
+                                st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
+                                st.session_state.active_tense_index += 1
+                                st.session_state.active_card_step = 1
+                                st.session_state.completed_card_steps = set()
+                                st.session_state.current_pack = None
+                                st.session_state.speech_eval_result = None
+                                st.session_state.quiz_eval_result = None
+                                auto_save_current_session()
+                                st.rerun()
+
+            render_incontext_coach(current_tense_name, 5, pack, target_l, native_l)
+
+            st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
+            col_prev, col_space = st.columns([1.2, 4])
+            with col_prev:
+                if st.button("⬅ Back to speech validation", key="back_c5", use_container_width=True):
+                    st.session_state.active_card_step = 4
+                    auto_save_current_session()
+                    st.rerun()
 
 
 # Persist current session snapshot to SQLite

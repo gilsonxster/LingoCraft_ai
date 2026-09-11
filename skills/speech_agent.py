@@ -51,14 +51,17 @@ def evaluate_speech_submission(
     score = algo_result["score"]
     is_pt = "portugu" in native_lang.lower()
 
+    clean_target = algo_result.get("target", target_phrase)
+    clean_spoken = algo_result.get("spoken", spoken_text)
+
     if api_key and api_key.strip():
         try:
             client = genai.Client(api_key=api_key.strip())
             prompt = f"""
 Target Language: {target_lang}
 Native/Support Language: {native_lang}
-Target Phrase: "{target_phrase}"
-User Spoken Transcription: "{spoken_text}"
+Target Phrase: "{clean_target}"
+User Spoken Transcription: "{clean_spoken}"
 Algorithmic Text Similarity Score: {score}%
 
 CRITICAL: Provide an empathetic, constructive speech validation report written entirely in {native_lang}. Return strict JSON.
@@ -89,7 +92,7 @@ CRITICAL: Provide an empathetic, constructive speech validation report written e
         return {
             "accuracy_score": score,
             "feedback_title": "Excelente Pronúncia! 🌟" if is_pt else "¡Excelente Pronunciación! 🌟",
-            "evaluation_message": f"Ótima vocalização! Você reproduziu '{target_phrase}' com muita clareza." if is_pt else f"Great vocalization! You matched '{target_phrase}' clearly and confidently.",
+            "evaluation_message": f"Ótima vocalização! Você reproduziu '{clean_target}' com muita clareza." if is_pt else f"Great vocalization! You matched '{clean_target}' clearly and confidently.",
             "phonetic_breakdown": "Vogais claras e sílaba tônica bem definida",
             "actionable_tip": "Mantenha esse mesmo ritmo ao falar em conversas reais!" if is_pt else "Keep this exact rhythm when speaking in real conversations!",
             "requires_micro_practice": False,
@@ -102,11 +105,11 @@ CRITICAL: Provide an empathetic, constructive speech validation report written e
         return {
             "accuracy_score": score,
             "feedback_title": "Bom esforço! No caminho certo 👍" if is_pt else "¡Buen Intento! Moving in the right direction 👍",
-            "evaluation_message": f"Você falou '{spoken_text}', comparado com o modelo '{target_phrase}'." if is_pt else f"You transcribed '{spoken_text}' compared to '{target_phrase}'.",
+            "evaluation_message": f"Você falou '{clean_spoken}', comparado com o modelo '{clean_target}'." if is_pt else f"You transcribed '{clean_spoken}' compared to '{clean_target}'.",
             "phonetic_breakdown": "Atenção à precisão das vogais",
             "actionable_tip": "Fique atento às letras mudas e certifique-se de que a sílaba principal receba a ênfase correta." if is_pt else "Be mindful of silent letters and ensure the primary syllable receives emphatic stress.",
             "requires_micro_practice": True,
-            "micro_practice_drill": f"Tente repetir devagar: '{target_phrase}' focando no verbo principal." if is_pt else f"Try repeating slowly: '{target_phrase}' focusing on the main verb.",
+            "micro_practice_drill": f"Tente repetir devagar: '{clean_target}' focando no verbo principal." if is_pt else f"Try repeating slowly: '{clean_target}' focusing on the main verb.",
             "diff_html": diff_html,
             "word_diff": word_diff,
             "extra_words": extra_words
@@ -115,11 +118,11 @@ CRITICAL: Provide an empathetic, constructive speech validation report written e
         return {
             "accuracy_score": score,
             "feedback_title": "Vamos lapidar isso! Pronúncia exige memória muscular 💪" if is_pt else "Let's Refine That! Pronunciation takes muscle memory 💪",
-            "evaluation_message": f"Detectamos '{spoken_text}', mas a frase alvo era '{target_phrase}'." if is_pt else f"We detected '{spoken_text}', but the target was '{target_phrase}'.",
+            "evaluation_message": f"Detectamos '{clean_spoken}', mas a frase alvo era '{clean_target}'." if is_pt else f"We detected '{clean_spoken}', but the target was '{clean_target}'.",
             "phonetic_breakdown": "Divida cada sílaba pausadamente",
             "actionable_tip": "Fale calmamente perto do microfone, praticando uma palavra por vez." if is_pt else "Speak slowly and clearly into the microphone. Practice individual words first!",
             "requires_micro_practice": True,
-            "micro_practice_drill": f"Repita 3 vezes em voz alta: '{target_phrase}'" if is_pt else f"Repeat 3 times aloud: '{target_phrase}'",
+            "micro_practice_drill": f"Repita 3 vezes em voz alta: '{clean_target}'" if is_pt else f"Repeat 3 times aloud: '{clean_target}'",
             "diff_html": diff_html,
             "word_diff": word_diff,
             "extra_words": extra_words

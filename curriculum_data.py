@@ -36,6 +36,10 @@ class Card4Speech:
     key_focus_sounds: str
     practice_tip: str
 
+    def __post_init__(self):
+        if self.target_phrase:
+            self.target_phrase = re.sub(r'[*_~`]', '', self.target_phrase).strip()
+
 @dataclass
 class Card5Quiz:
     sentence_prompt: str

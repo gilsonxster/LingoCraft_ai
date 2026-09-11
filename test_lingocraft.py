@@ -162,7 +162,22 @@ def test_lingocraft_improvements():
     diff_html = generate_word_diff_html(target_phrase, spoken_phrase)
     assert "diff-chip diff-match" in diff_html
     assert "diff-chip" in diff_html
-    print("    Word-level diff correctly tagged matches, mispronunciations, and omissions.")
+
+    # Test phrase with markdown asterisks (e.g. "**tener**") to verify no raw HTML code block leaks
+    md_target = "Es importante **tener** paciencia."
+    md_spoken = "Es importante **tener** paciencia."
+    md_diff_html = generate_word_diff_html(md_target, md_spoken)
+    assert "**" not in md_diff_html, "Markdown asterisks should be stripped from diff chips and recognized speech"
+    assert "tener" in md_diff_html
+    assert "Speech recognized:" in md_diff_html
+    # Ensure no line has 4+ leading spaces to prevent markdown indented code block parsing
+    for line in md_diff_html.splitlines():
+        assert not line.startswith("    "), f"Indented line found in diff_html: {line!r}"
+    eval_acc = evaluate_spoken_accuracy(md_spoken, md_target)
+    assert eval_acc["score"] == 100
+    assert eval_acc["target"] == "Es importante tener paciencia."
+    assert eval_acc["spoken"] == "Es importante tener paciencia."
+    print("    Word-level diff correctly tagged matches, mispronunciations, and omissions without markdown leaking.")
 
     # 10. Test 3-Tier Mastery Confidence (Spaced Repetition & Needs Review)
     print("[10] Testing 3-Tier Mastery & Needs Review Tracking...")

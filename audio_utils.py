@@ -1,4 +1,5 @@
 import io
+import re
 import difflib
 import functools
 from gtts import gTTS
@@ -34,6 +35,13 @@ def resolve_lang_code(lang_name: str) -> str:
 
 import html
 import unicodedata
+
+def strip_markdown(text: str) -> str:
+    """Strips markdown formatting characters like bold (** or __), italics (* or _), backticks, etc."""
+    if not text:
+        return ""
+    cleaned = re.sub(r'[*_~`]', '', text)
+    return ' '.join(cleaned.split())
 
 def strip_accents(text: str) -> str:
     """Removes diacritical marks/accents for robust phonetic and lexical matching."""
@@ -82,8 +90,11 @@ def generate_word_diff(target_phrase: str, spoken_text: str):
     Compares target words with spoken words to identify matches, mispronunciations, and omissions.
     Returns (diff_results, extra_words).
     """
-    t_words = target_phrase.split()
-    s_words = spoken_text.split() if spoken_text else []
+    clean_target = strip_markdown(target_phrase)
+    clean_spoken = strip_markdown(spoken_text) if spoken_text else ""
+
+    t_words = clean_target.split()
+    s_words = clean_spoken.split() if clean_spoken else []
 
     norm_t = [clean_word_for_matching(w) for w in t_words]
     norm_s = [clean_word_for_matching(w) for w in s_words]
@@ -149,7 +160,9 @@ def generate_word_diff(target_phrase: str, spoken_text: str):
 
 def generate_word_diff_html(target_phrase: str, spoken_text: str) -> str:
     """Renders accessible Google Material 3 HTML chips showing word-level accuracy."""
-    diff_results, extra_words = generate_word_diff(target_phrase, spoken_text)
+    clean_target = strip_markdown(target_phrase)
+    clean_spoken = strip_markdown(spoken_text) if spoken_text else ""
+    diff_results, extra_words = generate_word_diff(clean_target, clean_spoken)
     chips_html = []
 
     for item in diff_results:
@@ -183,34 +196,36 @@ def generate_word_diff_html(target_phrase: str, spoken_text: str) -> str:
         esc_extra = html.escape(', '.join(extra_words))
         extra_html = f'<div style="font-size: 0.8125rem; color: #B06000; margin-top: 8px;">➕ <em>Extra words spoken: {esc_extra}</em></div>'
 
-    esc_spoken = html.escape(spoken_text) if spoken_text else "<em>(No speech detected)</em>"
+    esc_spoken = html.escape(clean_spoken) if clean_spoken else "<em>(No speech detected)</em>"
+    chips_str = " ".join(chips_html)
 
-    return f"""
-    <div class="diff-breakdown-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-weight: 600; font-size: 0.8125rem; color: var(--gmat-sys-color-text-secondary); text-transform: uppercase; letter-spacing: 0.03rem;">
-                🔍 Word-by-word pronunciation accuracy
-            </span>
-            <span style="font-size: 0.75rem; color: var(--gmat-sys-color-text-secondary);">
-                ✓ Match &nbsp; ≈ Near &nbsp; ⚠️ Mispronounced &nbsp; ❌ Omitted
-            </span>
-        </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; line-height: 1.8;">
-            {' '.join(chips_html)}
-        </div>
-        {extra_html}
-        <div style="font-size: 0.8125rem; color: var(--gmat-sys-color-text-secondary); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--gmat-sys-color-outline);">
-            <strong>Speech recognized:</strong> "{esc_spoken}"
-        </div>
-    </div>
-    """
+    # Note: Do not indent lines with 4+ spaces or insert blank lines inside this block,
+    # as CommonMark/Markdown parsers in Streamlit will interpret indented lines as code blocks.
+    html_parts = [
+        '<div class="diff-breakdown-card">',
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">',
+        '<span style="font-weight: 600; font-size: 0.8125rem; color: var(--gmat-sys-color-text-secondary); text-transform: uppercase; letter-spacing: 0.03rem;">🔍 Word-by-word pronunciation accuracy</span>',
+        '<span style="font-size: 0.75rem; color: var(--gmat-sys-color-text-secondary);">✓ Match &nbsp; ≈ Near &nbsp; ⚠️ Mispronounced &nbsp; ❌ Omitted</span>',
+        '</div>',
+        f'<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; line-height: 1.8;">{chips_str}</div>',
+    ]
+    if extra_html:
+        html_parts.append(extra_html)
+    html_parts.extend([
+        f'<div style="font-size: 0.8125rem; color: var(--gmat-sys-color-text-secondary); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--gmat-sys-color-outline);"><strong>Speech recognized:</strong> "{esc_spoken}"</div>',
+        '</div>'
+    ])
+    return "\n".join(html_parts)
 
 def evaluate_spoken_accuracy(spoken_text: str, target_phrase: str) -> dict:
-    clean_spoken = ''.join(c for c in spoken_text.lower() if c.isalnum() or c.isspace()).strip()
-    clean_target = ''.join(c for c in target_phrase.lower() if c.isalnum() or c.isspace()).strip()
+    clean_target_phrase = strip_markdown(target_phrase)
+    clean_spoken_text = strip_markdown(spoken_text) if spoken_text else ""
 
-    diff_results, extra_words = generate_word_diff(target_phrase, spoken_text)
-    diff_html = generate_word_diff_html(target_phrase, spoken_text)
+    clean_spoken = ''.join(c for c in clean_spoken_text.lower() if c.isalnum() or c.isspace()).strip()
+    clean_target = ''.join(c for c in clean_target_phrase.lower() if c.isalnum() or c.isspace()).strip()
+
+    diff_results, extra_words = generate_word_diff(clean_target_phrase, clean_spoken_text)
+    diff_html = generate_word_diff_html(clean_target_phrase, clean_spoken_text)
 
     if not clean_spoken:
         return {
@@ -238,10 +253,11 @@ def evaluate_spoken_accuracy(spoken_text: str, target_phrase: str) -> dict:
         'score': score,
         'similarity': similarity,
         'status': status,
-        'spoken': spoken_text,
-        'target': target_phrase,
+        'spoken': clean_spoken_text,
+        'target': clean_target_phrase,
         'word_diff': diff_results,
         'extra_words': extra_words,
         'diff_html': diff_html,
     }
+
 

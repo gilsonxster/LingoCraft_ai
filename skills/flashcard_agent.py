@@ -91,10 +91,14 @@ def generate_tense_flashcards(
     api_key: str = ""
 ) -> TenseFlashcardPack:
     """Generates or loads the 5-card pack for a specific tense with native language explanations."""
-    # First check if pre-curated localized data exists
+    # First check if pre-curated localized data exists (Hacer, Tener, etc.)
     curriculum = get_curriculum_or_fallback(topic, target_lang, native_lang)
-    if "hacer" in topic.lower() and tense_name in curriculum.cards_by_tense:
-        return curriculum.cards_by_tense[tense_name]
+    if tense_name in curriculum.cards_by_tense and (
+        "hacer" in topic.lower() or "tener" in topic.lower() or not (api_key and api_key.strip())
+    ):
+        pack = curriculum.cards_by_tense[tense_name]
+        pack.tense_name = tense_name
+        return pack
 
     if api_key and api_key.strip():
         try:
@@ -120,7 +124,7 @@ Return strict JSON.
             )
             data = json.loads(response.text)
             return TenseFlashcardPack(
-                tense_name=data["tense_name"],
+                tense_name=tense_name,
                 tense_order=data.get("tense_order", tense_order),
                 card1_concept=Card1Concept(**data["card1_concept"]),
                 card2_example=Card2Example(**data["card2_example"]),
@@ -134,6 +138,10 @@ Return strict JSON.
 
     # Localized fallback
     if tense_name in curriculum.cards_by_tense:
-        return curriculum.cards_by_tense[tense_name]
+        pack = curriculum.cards_by_tense[tense_name]
+        pack.tense_name = tense_name
+        return pack
 
-    return list(curriculum.cards_by_tense.values())[0]
+    pack = list(curriculum.cards_by_tense.values())[0]
+    pack.tense_name = tense_name
+    return pack
