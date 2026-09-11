@@ -15,7 +15,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import LingoCraft AI components
+import importlib
 import session_manager
+importlib.reload(session_manager)
 from lingocraft_agent import LingoCraftOrchestrator
 from curriculum_data import SPANISH_HACER_CURRICULUM, CURATED_CURRICULA, get_curriculum_or_fallback
 from audio_utils import generate_tts_audio, transcribe_audio_bytes
