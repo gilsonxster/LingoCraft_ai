@@ -110,6 +110,7 @@ def test_lingocraft_improvements():
         "active_tense_index": 2,
         "active_card_step": 3,
         "completed_tenses": [0, 1],
+        "needs_review_tenses": [2],
         "completed_card_steps": [1, 2],
         "chat_history": [{"role": "user", "content": "Hello Coach!"}],
     }
@@ -120,12 +121,79 @@ def test_lingocraft_improvements():
     assert loaded["active_tense_index"] == 2
     assert loaded["active_card_step"] == 3
     assert 1 in loaded["completed_tenses"]
+    assert 2 in loaded["needs_review_tenses"]
     session_manager.delete_session(test_sid)
     print("    Session successfully saved, retrieved, validated, and cleaned up.")
 
+    # 8. Test Dual-Speed TTS Audio Playback (Normal 1.0x vs Practice pace 0.75x)
+    print("[8] Testing Dual-Speed TTS Audio Playback (1.0x vs 0.75x)...")
+    audio_normal = generate_tts_audio("haciendo", lang="es", slow=False)
+    audio_slow = generate_tts_audio("haciendo", lang="es", slow=True)
+    assert len(audio_normal) > 0, "Normal speed audio should not be empty!"
+    assert len(audio_slow) > 0, "Practice pace audio should not be empty!"
+    assert audio_normal != audio_slow, "Normal and slow audio byte streams should be distinct!"
+    print(f"    Normal audio bytes: {len(audio_normal)} bytes | Practice (slow) audio bytes: {len(audio_slow)} bytes")
+
+    # 9. Test Word-Level Visual Diff on Speech Validation
+    print("[9] Testing Word-Level Visual Diff & Chip Generation...")
+    from audio_utils import generate_word_diff, generate_word_diff_html
+    target_phrase = "Ahora mismo estoy haciendo un café caliente para el desayuno."
+    spoken_phrase = "ahora mismo estoy haziendo un cafe para el desayuno"
+
+    diff_tokens, extra_words = generate_word_diff(target_phrase, spoken_phrase)
+    assert len(diff_tokens) == 10, f"Expected 10 target tokens, got {len(diff_tokens)}"
+    
+    # Check match for 'Ahora', 'mismo', 'estoy', 'un', 'para', 'el'
+    matched_words = [d['target'] for d in diff_tokens if d['status'] == 'match']
+    assert "Ahora" in matched_words
+    assert "mismo" in matched_words
+    assert "estoy" in matched_words
+    assert "café" in matched_words  # Accents normalized cleanly
+
+    # Check near_match or miss for 'haciendo' (heard: haziendo)
+    haciendo_item = [d for d in diff_tokens if 'haciendo' in d['target']][0]
+    assert haciendo_item['status'] in ('near_match', 'miss')
+    assert haciendo_item['heard'] == 'haziendo'
+
+    # Check omitted word 'caliente'
+    caliente_item = [d for d in diff_tokens if 'caliente' in d['target']][0]
+    assert caliente_item['status'] == 'omitted'
+
+    diff_html = generate_word_diff_html(target_phrase, spoken_phrase)
+    assert "diff-chip diff-match" in diff_html
+    assert "diff-chip" in diff_html
+    print("    Word-level diff correctly tagged matches, mispronunciations, and omissions.")
+
+    # 10. Test 3-Tier Mastery Confidence (Spaced Repetition & Needs Review)
+    print("[10] Testing 3-Tier Mastery & Needs Review Tracking...")
+    test_sid_sr = "test-lingo-spaced-rep"
+    sr_state = {
+        "current_curriculum": plan_en,
+        "active_tense_index": 1,
+        "active_card_step": 4,
+        "completed_tenses": [0],
+        "needs_review_tenses": [1, 2],
+        "completed_card_steps": [1, 2, 3],
+        "chat_history": []
+    }
+    session_manager.save_session(test_sid_sr, sr_state)
+    loaded_sr = session_manager.load_session(test_sid_sr)
+    assert loaded_sr is not None
+    assert 0 in loaded_sr["completed_tenses"]
+    assert 1 in loaded_sr["needs_review_tenses"]
+    assert 2 in loaded_sr["needs_review_tenses"]
+
+    recent_list = session_manager.list_recent_sessions(limit=5)
+    matched_recent = [r for r in recent_list if r["session_id"] == test_sid_sr]
+    assert len(matched_recent) == 1
+    assert matched_recent[0]["needs_review_count"] == 2
+    session_manager.delete_session(test_sid_sr)
+    print("    3-tier mastery states (Mastered, Needs Review, Active) successfully verified.")
+
     print("==================================================")
-    print("ALL 7 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
+    print("ALL 10 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
     print("==================================================")
 
 if __name__ == '__main__':
     test_lingocraft_improvements()
+

@@ -32,10 +32,15 @@ def init_db(db_path: str = DB_PATH) -> None:
                 completed_card_steps_json TEXT NOT NULL DEFAULT '[]',
                 current_curriculum_json TEXT NOT NULL,
                 chat_history_json TEXT NOT NULL DEFAULT '[]',
+                needs_review_tenses_json TEXT NOT NULL DEFAULT '[]',
                 created_at REAL NOT NULL,
                 updated_at REAL NOT NULL
             )
         """)
+        cursor.execute("PRAGMA table_info(study_sessions)")
+        cols = [c[1] for c in cursor.fetchall()]
+        if "needs_review_tenses_json" not in cols:
+            cursor.execute("ALTER TABLE study_sessions ADD COLUMN needs_review_tenses_json TEXT NOT NULL DEFAULT '[]'")
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_sessions_updated_at ON study_sessions(updated_at DESC)
         """)
@@ -60,6 +65,7 @@ def save_session(session_id: str, state_dict: Dict[str, Any], db_path: str = DB_
 
         completed_tenses = list(state_dict.get("completed_tenses", []))
         completed_card_steps = list(state_dict.get("completed_card_steps", []))
+        needs_review_tenses = list(state_dict.get("needs_review_tenses", []))
         chat_history = state_dict.get("chat_history", [])
 
         now = time.time()
@@ -72,8 +78,9 @@ def save_session(session_id: str, state_dict: Dict[str, Any], db_path: str = DB_
                     active_tense_index, active_card_step,
                     completed_tenses_json, completed_card_steps_json,
                     current_curriculum_json, chat_history_json,
+                    needs_review_tenses_json,
                     created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(session_id) DO UPDATE SET
                     topic = excluded.topic,
                     target_language = excluded.target_language,
@@ -84,6 +91,7 @@ def save_session(session_id: str, state_dict: Dict[str, Any], db_path: str = DB_
                     completed_card_steps_json = excluded.completed_card_steps_json,
                     current_curriculum_json = excluded.current_curriculum_json,
                     chat_history_json = excluded.chat_history_json,
+                    needs_review_tenses_json = excluded.needs_review_tenses_json,
                     updated_at = excluded.updated_at
             """, (
                 session_id,
@@ -96,6 +104,7 @@ def save_session(session_id: str, state_dict: Dict[str, Any], db_path: str = DB_
                 json.dumps(completed_card_steps),
                 json.dumps(curriculum),
                 json.dumps(chat_history),
+                json.dumps(needs_review_tenses),
                 now,
                 now
             ))
@@ -118,6 +127,7 @@ def load_session(session_id: str, db_path: str = DB_PATH) -> Optional[Dict[str, 
                     active_tense_index, active_card_step,
                     completed_tenses_json, completed_card_steps_json,
                     current_curriculum_json, chat_history_json,
+                    needs_review_tenses_json,
                     created_at, updated_at
                 FROM study_sessions
                 WHERE session_id = ?
@@ -125,6 +135,13 @@ def load_session(session_id: str, db_path: str = DB_PATH) -> Optional[Dict[str, 
             row = cursor.fetchone()
             if not row:
                 return None
+
+            needs_rev = set()
+            if len(row) > 10 and row[10]:
+                try:
+                    needs_rev = set(json.loads(row[10]))
+                except Exception:
+                    needs_rev = set()
 
             return {
                 "session_id": row[0],
@@ -137,8 +154,9 @@ def load_session(session_id: str, db_path: str = DB_PATH) -> Optional[Dict[str, 
                 "completed_card_steps": set(json.loads(row[7])),
                 "current_curriculum": json.loads(row[8]),
                 "chat_history": json.loads(row[9]),
-                "created_at": row[10],
-                "updated_at": row[11],
+                "needs_review_tenses": needs_rev,
+                "created_at": row[11],
+                "updated_at": row[12],
             }
     except Exception as e:
         print(f"Error loading session {session_id}: {e}")
@@ -156,6 +174,7 @@ def list_recent_sessions(limit: int = 5, db_path: str = DB_PATH) -> List[Dict[st
                     session_id, topic, target_language, native_language,
                     active_tense_index, active_card_step,
                     completed_tenses_json, current_curriculum_json,
+                    needs_review_tenses_json,
                     updated_at
                 FROM study_sessions
                 ORDER BY updated_at DESC
@@ -169,9 +188,11 @@ def list_recent_sessions(limit: int = 5, db_path: str = DB_PATH) -> List[Dict[st
                     roadmap = curriculum.get("tenses_roadmap", [])
                     total_tenses = len(roadmap)
                     completed_tenses = json.loads(r[6])
+                    needs_review = json.loads(r[8]) if len(r) > 8 and r[8] else []
                 except Exception:
                     total_tenses = 5
                     completed_tenses = []
+                    needs_review = []
 
                 results.append({
                     "session_id": r[0],
@@ -181,13 +202,15 @@ def list_recent_sessions(limit: int = 5, db_path: str = DB_PATH) -> List[Dict[st
                     "active_tense_index": r[4],
                     "active_card_step": r[5],
                     "completed_count": len(completed_tenses),
+                    "needs_review_count": len(needs_review),
                     "total_tenses": total_tenses,
-                    "updated_at": r[8]
+                    "updated_at": r[9]
                 })
             return results
     except Exception as e:
         print(f"Error listing recent sessions: {e}")
         return []
+
 
 
 def delete_session(session_id: str, db_path: str = DB_PATH) -> bool:

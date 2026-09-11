@@ -80,6 +80,16 @@ st.markdown("""
         margin-bottom: var(--space-6);
         line-height: 1.5;
     }
+    @keyframes cardSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
     .card-container {
         background-color: var(--gmat-sys-color-surface);
         border: 1px solid var(--gmat-sys-color-outline);
@@ -87,6 +97,11 @@ st.markdown("""
         padding: var(--space-6);
         box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.08), 0 4px 8px 3px rgba(60, 64, 67, 0.04);
         margin-bottom: var(--space-6);
+        animation: cardSlideIn 0.28s cubic-bezier(0.2, 0, 0, 1);
+        transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .card-container:hover {
+        box-shadow: 0 4px 12px 0 rgba(60, 64, 67, 0.1), 0 8px 16px 3px rgba(60, 64, 67, 0.05);
     }
     .stage-badge {
         display: inline-flex;
@@ -173,6 +188,15 @@ st.markdown("""
         padding: 4px 10px;
         border-radius: 9999px;
     }
+    .badge-review {
+        background-color: var(--gmat-sys-color-warning-container);
+        color: var(--gmat-sys-color-warning);
+        border: 1px solid #F9AB00;
+        font-weight: 600;
+        font-size: 0.8125rem;
+        padding: 4px 10px;
+        border-radius: 9999px;
+    }
     .badge-active {
         background-color: var(--gmat-sys-color-primary-container);
         color: var(--gmat-sys-color-on-primary-container);
@@ -190,6 +214,64 @@ st.markdown("""
         font-size: 0.8125rem;
         padding: 4px 10px;
         border-radius: 9999px;
+    }
+    .diff-breakdown-card {
+        background-color: var(--gmat-sys-color-surface-variant);
+        border: 1px solid var(--gmat-sys-color-outline);
+        border-radius: 12px;
+        padding: var(--space-4);
+        margin: var(--space-4) 0;
+    }
+    .diff-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        margin: 2px 4px;
+        transition: transform 0.15s ease;
+    }
+    .diff-chip:hover {
+        transform: translateY(-1px);
+    }
+    .diff-match {
+        background-color: var(--gmat-sys-color-success-container);
+        color: var(--gmat-sys-color-success);
+        border: 1px solid #A8DAB5;
+    }
+    .diff-near {
+        background-color: #FEF7E0;
+        color: #B06000;
+        border: 1px solid #FEEFC3;
+    }
+    .diff-miss {
+        background-color: var(--gmat-sys-color-error-container);
+        color: var(--gmat-sys-color-error);
+        border: 1px solid #F6AEA9;
+    }
+    .diff-omitted {
+        background-color: #F1F3F4;
+        color: #80868B;
+        border: 1px dashed #DADCE0;
+        text-decoration: line-through;
+    }
+    .diff-icon {
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+    .diff-heard {
+        font-size: 0.8rem;
+        font-style: italic;
+        opacity: 0.85;
+    }
+    .incontext-coach-card {
+        background-color: #F8FAFD;
+        border: 1px solid #C2E7FF;
+        border-radius: 12px;
+        padding: var(--space-4);
+        margin: var(--space-3) 0;
     }
     .telemetry-row {
         font-family: monospace;
@@ -252,6 +334,7 @@ def auto_save_current_session():
             "active_tense_index": st.session_state.get("active_tense_index", 0),
             "active_card_step": st.session_state.get("active_card_step", 1),
             "completed_tenses": list(st.session_state.get("completed_tenses", set())),
+            "needs_review_tenses": list(st.session_state.get("needs_review_tenses", set())),
             "completed_card_steps": list(st.session_state.get("completed_card_steps", set())),
             "chat_history": st.session_state.get("chat_history", []),
         }
@@ -279,7 +362,100 @@ def toggle_tense_mastery(idx: int):
         st.session_state.completed_tenses.discard(idx)
     else:
         st.session_state.completed_tenses.add(idx)
+        st.session_state.needs_review_tenses.discard(idx)
     auto_save_current_session()
+
+def toggle_tense_review(idx: int):
+    if idx in st.session_state.needs_review_tenses:
+        st.session_state.needs_review_tenses.discard(idx)
+    else:
+        st.session_state.needs_review_tenses.add(idx)
+        st.session_state.completed_tenses.discard(idx)
+    auto_save_current_session()
+
+def render_incontext_coach(current_tense_name: str, step_num: int, pack, target_l: str, native_l: str):
+    """
+    Renders an in-context Coach consultation widget directly inside the active flashcard container
+    so learners can resolve doubts immediately without losing their card step or study flow.
+    """
+    with st.expander(f"💬 Ask Coach LingoCraft about {current_tense_name} (in-context)", expanded=False):
+        st.markdown(f"<p style='font-size: 0.875rem; color: var(--gmat-sys-color-text-secondary); margin-bottom: 8px;'>Got a question about <strong>{current_tense_name}</strong>? Ask here and continue your study flow without switching tabs.</p>", unsafe_allow_html=True)
+
+        prompts = getattr(pack, "suggested_coach_prompts", []) if pack else []
+        if prompts:
+            st.markdown("<div style='font-size: 0.8125rem; font-weight: 600; color: var(--gmat-sys-color-text-secondary); margin-bottom: 6px;'>💡 Quick questions:</div>", unsafe_allow_html=True)
+            p_cols = st.columns(min(len(prompts[:3]), 3))
+            for p_i, p_txt in enumerate(prompts[:3]):
+                with p_cols[p_i]:
+                    if st.button(f"👉 {p_txt}", key=f"inc_p_{current_tense_name}_{step_num}_{p_i}", use_container_width=True):
+                        log_ve_event("incontext_coach_quick_prompt", "click", {"prompt": p_txt, "step": step_num})
+                        with st.spinner("Coach LingoCraft is answering..."):
+                            ans = orchestrator.ask_coach(
+                                question=p_txt,
+                                current_topic=st.session_state.current_curriculum.get("topic", ""),
+                                current_tense=current_tense_name,
+                                target_lang=target_l,
+                                native_lang=native_l,
+                                chat_history=st.session_state.chat_history
+                            )
+                            st.session_state[f"incontext_ans_{current_tense_name}_{step_num}"] = {
+                                "q": p_txt,
+                                "a": ans
+                            }
+                            st.session_state.chat_history.append({"role": "user", "content": p_txt})
+                            st.session_state.chat_history.append({"role": "assistant", "content": ans})
+                            auto_save_current_session()
+                            st.rerun()
+
+        col_q, col_btn = st.columns([4, 1.2])
+        with col_q:
+            custom_q = st.text_input(
+                "Or type your question:",
+                placeholder=f"e.g. Why does this form change in {current_tense_name}?",
+                key=f"inc_q_input_{current_tense_name}_{step_num}",
+                label_visibility="collapsed"
+            )
+        with col_btn:
+            if st.button("Ask coach 💬", key=f"inc_btn_{current_tense_name}_{step_num}", use_container_width=True, type="primary"):
+                if custom_q.strip():
+                    log_ve_event("incontext_coach_custom_query", "submit", {"query": custom_q, "step": step_num})
+                    with st.spinner("Coach LingoCraft is answering..."):
+                        ans = orchestrator.ask_coach(
+                            question=custom_q.strip(),
+                            current_topic=st.session_state.current_curriculum.get("topic", ""),
+                            current_tense=current_tense_name,
+                            target_lang=target_l,
+                            native_lang=native_l,
+                            chat_history=st.session_state.chat_history
+                        )
+                        st.session_state[f"incontext_ans_{current_tense_name}_{step_num}"] = {
+                            "q": custom_q.strip(),
+                            "a": ans
+                        }
+                        st.session_state.chat_history.append({"role": "user", "content": custom_q.strip()})
+                        st.session_state.chat_history.append({"role": "assistant", "content": ans})
+                        auto_save_current_session()
+                        st.rerun()
+
+        step_ans_key = f"incontext_ans_{current_tense_name}_{step_num}"
+        if step_ans_key in st.session_state and st.session_state[step_ans_key]:
+            record = st.session_state[step_ans_key]
+            st.markdown(f"""
+            <div class="incontext-coach-card">
+                <div style="font-weight: 600; font-size: 0.875rem; color: #174EA6; margin-bottom: 4px;">
+                    🎓 Coach LingoCraft:
+                </div>
+                <div style="font-size: 0.8125rem; color: #5F6368; font-style: italic; margin-bottom: 8px;">
+                    Regarding: "{record['q']}"
+                </div>
+                <div style="font-size: 0.95rem; color: #202124; line-height: 1.5;">
+                    {record['a']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Clear coach response", key=f"clear_inc_{current_tense_name}_{step_num}", help="Dismiss this answer"):
+                del st.session_state[step_ans_key]
+                st.rerun()
 
 
 # Resolve Session ID from URL query parameters (?sid=...) or restore active session
@@ -294,6 +470,7 @@ if "session_id" not in st.session_state:
             st.session_state.active_tense_index = loaded_state["active_tense_index"]
             st.session_state.active_card_step = loaded_state["active_card_step"]
             st.session_state.completed_tenses = set(loaded_state["completed_tenses"])
+            st.session_state.needs_review_tenses = set(loaded_state.get("needs_review_tenses", []))
             st.session_state.completed_card_steps = set(loaded_state["completed_card_steps"])
             st.session_state.chat_history = loaded_state["chat_history"]
             st.session_state.session_loaded_msg = f"Resumed study session: {loaded_state['topic']}"
@@ -334,6 +511,9 @@ if "completed_card_steps" not in st.session_state:
 if "completed_tenses" not in st.session_state:
     st.session_state.completed_tenses = set()
 
+if "needs_review_tenses" not in st.session_state:
+    st.session_state.needs_review_tenses = set()
+
 if "current_pack" not in st.session_state:
     st.session_state.current_pack = None
 
@@ -348,6 +528,7 @@ if "micro_practice_result" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+
 
 # Synchronize session ID with browser localStorage to preserve state across browser restarts
 components.html(f"""
@@ -405,6 +586,7 @@ with st.sidebar:
                 st.session_state.active_card_step = 1
                 st.session_state.completed_card_steps = set()
                 st.session_state.completed_tenses = set()
+                st.session_state.needs_review_tenses = set()
                 st.session_state.current_pack = None
                 st.session_state.speech_eval_result = None
                 st.session_state.quiz_eval_result = None
@@ -427,6 +609,7 @@ with st.sidebar:
                     st.session_state.active_tense_index = loaded["active_tense_index"]
                     st.session_state.active_card_step = loaded["active_card_step"]
                     st.session_state.completed_tenses = set(loaded["completed_tenses"])
+                    st.session_state.needs_review_tenses = set(loaded.get("needs_review_tenses", []))
                     st.session_state.completed_card_steps = set(loaded["completed_card_steps"])
                     st.session_state.chat_history = loaded["chat_history"]
                     st.session_state.current_pack = None
@@ -445,7 +628,9 @@ with st.sidebar:
             st.markdown("##### 🕒 Recent Study Sessions:")
             for r in other_recents:
                 t_str = time.strftime("%b %d, %H:%M", time.localtime(r["updated_at"]))
-                c_lbl = f"{r['topic'][:18]}... ({r['completed_count']}/{r['total_tenses']})"
+                rev_n = r.get("needs_review_count", 0)
+                rev_suffix = f" | 🔄 {rev_n}" if rev_n > 0 else ""
+                c_lbl = f"{r['topic'][:16]}... (🏆 {r['completed_count']}/{r['total_tenses']}{rev_suffix})"
                 if st.button(f"▶️ {c_lbl}", key=f"rec_btn_{r['session_id']}", help=f"Code: {r['session_id']} | Updated: {t_str}", use_container_width=True):
                     loaded = session_manager.load_session(r["session_id"])
                     if loaded:
@@ -455,6 +640,7 @@ with st.sidebar:
                         st.session_state.active_tense_index = loaded["active_tense_index"]
                         st.session_state.active_card_step = loaded["active_card_step"]
                         st.session_state.completed_tenses = set(loaded["completed_tenses"])
+                        st.session_state.needs_review_tenses = set(loaded.get("needs_review_tenses", []))
                         st.session_state.completed_card_steps = set(loaded["completed_card_steps"])
                         st.session_state.chat_history = loaded["chat_history"]
                         st.session_state.current_pack = None
@@ -502,6 +688,7 @@ with st.sidebar:
             st.session_state.completed_card_steps = set()
             st.session_state.current_pack = None
             st.session_state.completed_tenses = set()
+            st.session_state.needs_review_tenses = set()
             st.session_state.speech_eval_result = None
             st.session_state.quiz_eval_result = None
             st.session_state.main_tab = MAIN_TAB_LEARN
@@ -522,6 +709,7 @@ with st.sidebar:
                 st.session_state.completed_card_steps = set()
                 st.session_state.current_pack = None
                 st.session_state.completed_tenses = set()
+                st.session_state.needs_review_tenses = set()
                 st.session_state.speech_eval_result = None
                 st.session_state.quiz_eval_result = None
                 st.session_state.main_tab = MAIN_TAB_LEARN
@@ -548,10 +736,21 @@ with st.sidebar:
     else:
         active_tense_name = "General"
 
+    needs_rev_set = st.session_state.get("needs_review_tenses", set())
     for idx, tense in enumerate(roadmap):
         is_act = (idx == st.session_state.active_tense_index)
         is_comp = (idx in st.session_state.completed_tenses)
-        label = f"✅ {idx+1}. {tense}" if is_comp else (f"🎯 {idx+1}. {tense}" if is_act else f"⏳ {idx+1}. {tense}")
+        is_rev = (idx in needs_rev_set)
+
+        if is_comp:
+            label = f"🏆 {idx+1}. {tense}"
+        elif is_rev:
+            label = f"🔄 {idx+1}. {tense} (Review)"
+        elif is_act:
+            label = f"🎯 {idx+1}. {tense}"
+        else:
+            label = f"⏳ {idx+1}. {tense}"
+
         btn_t = "primary" if is_act else "secondary"
         st.button(
             label,
@@ -569,12 +768,14 @@ with st.sidebar:
         st.session_state.active_card_step = 1
         st.session_state.completed_card_steps = set()
         st.session_state.completed_tenses = set()
+        st.session_state.needs_review_tenses = set()
         st.session_state.current_pack = None
         st.session_state.speech_eval_result = None
         st.session_state.quiz_eval_result = None
         st.session_state.main_tab = MAIN_TAB_LEARN
         auto_save_current_session()
         st.rerun()
+
 
     # Observability & Visual Element (VE) Telemetry (Google Frontend Standard)
     with st.expander("📊 Observability & Telemetry (VE)", expanded=False):
@@ -610,14 +811,17 @@ tab_learn, tab_coach, tab_curriculum = st.tabs(
 with tab_curriculum:
     log_ve_event("tab_curriculum_view", "impression")
     st.subheader(f"Topic: {st.session_state.current_curriculum.get('topic')}")
-    col_meta1, col_meta2, col_meta3 = st.columns(3)
+    col_meta1, col_meta2, col_meta3, col_meta4 = st.columns(4)
     with col_meta1:
         st.metric("Target language", st.session_state.current_curriculum.get('target_language', 'Spanish'))
     with col_meta2:
         st.metric("Native / Support", st.session_state.current_curriculum.get('native_language', 'English'))
     with col_meta3:
         comp_count = len(st.session_state.completed_tenses)
-        st.metric("Mastery progress", f"{comp_count} / {total_tenses} Stages")
+        st.metric("Mastered stages", f"{comp_count} / {total_tenses} Stages")
+    with col_meta4:
+        rev_count = len(st.session_state.needs_review_tenses)
+        st.metric("Needs review", f"{rev_count} Stages")
 
     prog_val = comp_count / max(total_tenses, 1)
     st.progress(prog_val)
@@ -627,13 +831,23 @@ with tab_curriculum:
     st.markdown("### 🎯 Interactive tenses stepper")
     st.caption("Click any tense below to jump directly to its 5-stage flashcard study:")
 
-    # Top Stepper Bar (Clickable Stage Buttons)
+    # Top Stepper Bar (Clickable Stage Buttons with 3-Tier Status)
     c_cols = st.columns(min(len(roadmap), 5)) if roadmap else []
     for i, t in enumerate(roadmap):
         with c_cols[i % len(c_cols)]:
             is_act = (i == st.session_state.active_tense_index)
             is_comp = (i in st.session_state.completed_tenses)
-            icon = "🎯 " if is_act else ("✓ " if is_comp else "⏳ ")
+            is_rev = (i in st.session_state.needs_review_tenses)
+
+            if is_act:
+                icon = "🎯 "
+            elif is_comp:
+                icon = "🏆 "
+            elif is_rev:
+                icon = "🔄 "
+            else:
+                icon = "⏳ "
+
             btn_t = "primary" if is_act else "secondary"
             st.button(
                 f"{icon}Stage {i+1}\n{t}",
@@ -651,9 +865,24 @@ with tab_curriculum:
     for i, t in enumerate(roadmap):
         is_act = (i == st.session_state.active_tense_index)
         is_comp = (i in st.session_state.completed_tenses)
-        badge_class = "badge-mastered" if is_comp else ("badge-active" if is_act else "badge-upcoming")
-        badge_label = "✅ Mastered" if is_comp else ("🎯 In progress (active)" if is_act else "⏳ Upcoming")
-        border_color = "var(--gmat-sys-color-primary)" if is_act else ("var(--gmat-sys-color-success)" if is_comp else "var(--gmat-sys-color-outline)")
+        is_rev = (i in st.session_state.needs_review_tenses)
+
+        if is_comp:
+            badge_class = "badge-mastered"
+            badge_label = "🏆 Mastered"
+            border_color = "var(--gmat-sys-color-success)"
+        elif is_rev:
+            badge_class = "badge-review"
+            badge_label = "🔄 Needs review"
+            border_color = "var(--gmat-sys-color-warning)"
+        elif is_act:
+            badge_class = "badge-active"
+            badge_label = "🎯 In progress (active)"
+            border_color = "var(--gmat-sys-color-primary)"
+        else:
+            badge_class = "badge-upcoming"
+            badge_label = "⏳ Upcoming"
+            border_color = "var(--gmat-sys-color-outline)"
 
         st.markdown(f"""
         <div class="curriculum-card" style="border-left: 5px solid {border_color};">
@@ -667,9 +896,9 @@ with tab_curriculum:
         </div>
         """, unsafe_allow_html=True)
 
-        col_act1, col_act2, col_act3 = st.columns([2.5, 2, 1.5])
+        col_act1, col_act2, col_act3, col_act4 = st.columns([2.2, 1.8, 1.5, 1.5])
         with col_act1:
-            btn_label = f"📖 {'Continue' if is_act else ('Review' if is_comp else 'Start')} study ({t}) ➔"
+            btn_label = f"📖 {'Continue' if is_act else ('Review' if (is_comp or is_rev) else 'Start')} study ({t}) ➔"
             btn_t = "primary" if is_act else "secondary"
             st.button(
                 btn_label,
@@ -688,7 +917,7 @@ with tab_curriculum:
                 args=(i,)
             )
         with col_act3:
-            toggle_text = "↩️ Mark active" if is_comp else "✅ Mark mastered"
+            toggle_text = "↩️ Mark active" if is_comp else "🏆 Mark mastered"
             st.button(
                 toggle_text,
                 key=f"curr_card_toggle_{i}",
@@ -696,7 +925,17 @@ with tab_curriculum:
                 on_click=toggle_tense_mastery,
                 args=(i,)
             )
+        with col_act4:
+            rev_text = "✓ Clear review" if is_rev else "🔄 Flag review"
+            st.button(
+                rev_text,
+                key=f"curr_card_rev_{i}",
+                use_container_width=True,
+                on_click=toggle_tense_review,
+                args=(i,)
+            )
         st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+
 
 with tab_coach:
     log_ve_event("tab_coach_view", "impression")
@@ -830,6 +1069,7 @@ with tab_learn:
         with col_hdr_skip:
             if st.button("🏆 Mark tense as mastered ➔", help="Jump to the next tense if you already know this form", use_container_width=True):
                 st.session_state.completed_tenses.add(st.session_state.active_tense_index)
+                st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
                 st.session_state.active_tense_index += 1
                 st.session_state.active_card_step = 1
                 st.session_state.completed_card_steps = set()
@@ -879,6 +1119,8 @@ with tab_learn:
                 trigger_pills = " ".join([f"<span style='display:inline-block; background-color:#F1F3F4; color:#202124; padding:3px 10px; border-radius:16px; margin:2px 4px; font-family:monospace; font-size:0.875rem; border:1px solid #DADCE0;'>{trig}</span>" for trig in pack.card1_concept.triggers])
                 st.markdown(trigger_pills, unsafe_allow_html=True)
 
+            render_incontext_coach(current_tense_name, 1, pack, target_l, native_l)
+
             st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
             col_a, col_skip, col_b = st.columns([2, 2, 1.4])
             with col_skip:
@@ -904,11 +1146,28 @@ with tab_learn:
             st.markdown(f"#### 🎯 Target language ({target_l}):")
             st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#174EA6; background-color:#E8F0FE; padding:16px; border-radius:12px; border-left:5px solid #1A73E8;'>{pack.card2_example.target_sentence}</div>", unsafe_allow_html=True)
 
+            target_lang_code = st.session_state.current_curriculum.get("target_language_code", "es")
+            clean_audio_target = pack.card2_example.target_sentence.replace("**", "").replace("*", "")
+            st.markdown("##### 🎧 Listen to phrase:")
+            col_c2_a1, col_c2_a2 = st.columns(2)
+            with col_c2_a1:
+                st.caption("🔊 Normal speed (1.0x)")
+                c2_audio_norm = generate_tts_audio(clean_audio_target, lang=target_lang_code, slow=False)
+                if c2_audio_norm:
+                    st.audio(c2_audio_norm, format="audio/mp3")
+            with col_c2_a2:
+                st.caption("🐢 Practice pace (0.75x)")
+                c2_audio_slow = generate_tts_audio(clean_audio_target, lang=target_lang_code, slow=True)
+                if c2_audio_slow:
+                    st.audio(c2_audio_slow, format="audio/mp3")
+
             st.markdown(f"#### 🌐 Translation / Meaning ({native_l}):")
             st.markdown(f"<div style='font-size:1.125rem; color:#202124; background-color:#F8F9FA; padding:14px; border-radius:12px; margin-top:8px; border:1px solid #DADCE0;'>{pack.card2_example.native_sentence}</div>", unsafe_allow_html=True)
 
             with st.expander("🔍 Grammatical Structure & Breakdown", expanded=True):
                 st.markdown(pack.card2_example.breakdown)
+
+            render_incontext_coach(current_tense_name, 2, pack, target_l, native_l)
 
             st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
             col_prev, col_skip, col_next = st.columns([1.2, 2, 1.4])
@@ -930,6 +1189,7 @@ with tab_learn:
                     auto_save_current_session()
                     st.rerun()
 
+
         # -------------------------------------------------------------
         # STAGE 3: PRONUNCIATION GUIDE
         # -------------------------------------------------------------
@@ -945,12 +1205,22 @@ with tab_learn:
 
             st.markdown("#### 🎧 Spoken audio (zero-latency cached):")
             target_lang_code = st.session_state.current_curriculum.get("target_language_code", "es")
-            audio_bytes = generate_tts_audio(pack.card3_pronunciation.audio_text, lang=target_lang_code)
-            if audio_bytes:
-                st.audio(audio_bytes, format="audio/mp3")
+            col_c3_a1, col_c3_a2 = st.columns(2)
+            with col_c3_a1:
+                st.caption("🔊 Normal speed (1.0x)")
+                c3_audio_norm = generate_tts_audio(pack.card3_pronunciation.audio_text, lang=target_lang_code, slow=False)
+                if c3_audio_norm:
+                    st.audio(c3_audio_norm, format="audio/mp3")
+            with col_c3_a2:
+                st.caption("🐢 Practice pace (0.75x)")
+                c3_audio_slow = generate_tts_audio(pack.card3_pronunciation.audio_text, lang=target_lang_code, slow=True)
+                if c3_audio_slow:
+                    st.audio(c3_audio_slow, format="audio/mp3")
 
             with st.expander("🗣️ Articulation & Vocal Coaching Tips", expanded=False):
                 st.markdown(pack.card3_pronunciation.phonetic_tips)
+
+            render_incontext_coach(current_tense_name, 3, pack, target_l, native_l)
 
             st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
             col_prev, col_skip, col_next = st.columns([1.2, 2, 1.4])
@@ -1040,12 +1310,21 @@ with tab_learn:
                 st.progress(score / 100)
                 st.write(f"**Accuracy score:** {score}%")
 
+                # Word-level visual diff chips
+                if res.get("diff_html"):
+                    st.markdown(res["diff_html"], unsafe_allow_html=True)
+
                 if score >= 75:
                     st.markdown(f"<div class='feedback-box-success' role='status' aria-live='polite'><h4>{res.get('feedback_title', '¡Excelente!')}</h4><p>{res.get('evaluation_message')}</p><p><strong>Tip:</strong> {res.get('actionable_tip')}</p></div>", unsafe_allow_html=True)
                 else:
+                    st.session_state.needs_review_tenses.add(st.session_state.active_tense_index)
                     st.markdown(f"<div class='feedback-box-error' role='alert' aria-live='assertive'><h4>{res.get('feedback_title', 'Constructive feedback')}</h4><p>{res.get('evaluation_message')}</p><p><strong>Adjustment:</strong> {res.get('actionable_tip')}</p></div>", unsafe_allow_html=True)
+                    st.markdown("<p style='font-size:0.8125rem; color:#B06000; margin-top:6px;'>🔄 <em>This stage has been automatically flagged as <strong>Needs review</strong> in your roadmap.</em></p>", unsafe_allow_html=True)
                     if res.get("requires_micro_practice") and res.get("micro_practice_drill"):
                         st.warning(f"🔄 **Immediate micro-practice:** {res.get('micro_practice_drill')}")
+
+            render_incontext_coach(current_tense_name, 4, pack, target_l, native_l)
+
 
             st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
             col_prev, col_skip, col_next = st.columns([1.2, 2, 1.4])
@@ -1120,6 +1399,7 @@ with tab_learn:
                 if st.button("⏩ Skip and mark tense complete", key="skip_quiz", use_container_width=True):
                     st.session_state.completed_card_steps.add(5)
                     st.session_state.completed_tenses.add(st.session_state.active_tense_index)
+                    st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
                     st.session_state.active_tense_index += 1
                     st.session_state.active_card_step = 1
                     st.session_state.completed_card_steps = set()
@@ -1134,12 +1414,14 @@ with tab_learn:
                 qres = st.session_state.quiz_eval_result
                 if qres["is_correct"]:
                     st.session_state.completed_card_steps.add(5)
+                    st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
                     st.markdown(f"<div class='feedback-box-success' role='status' aria-live='polite'><h3>{qres.get('headline')}</h3><p>{qres.get('feedback')}</p></div>", unsafe_allow_html=True)
                     st.markdown("<br>", unsafe_allow_html=True)
 
                     # Advance to Next Tense Button
                     if st.button("🏆 Complete tense and advance to next ➔", type="primary", use_container_width=True):
                         st.session_state.completed_tenses.add(st.session_state.active_tense_index)
+                        st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
                         st.session_state.active_tense_index += 1
                         st.session_state.active_card_step = 1
                         st.session_state.completed_card_steps = set()
@@ -1150,7 +1432,9 @@ with tab_learn:
                         st.rerun()
 
                 else:
+                    st.session_state.needs_review_tenses.add(st.session_state.active_tense_index)
                     st.markdown(f"<div class='feedback-box-error' role='alert' aria-live='assertive'><h3>{qres.get('headline')}</h3><p>{qres.get('feedback')}</p><p><strong>Why this mistake is common:</strong> {qres.get('why_common_mistake')}</p></div>", unsafe_allow_html=True)
+                    st.markdown("<p style='font-size:0.8125rem; color:#B06000; margin-top:6px;'>🔄 <em>This tense has been flagged as <strong>Needs review</strong> in your roadmap.</em></p>", unsafe_allow_html=True)
 
                     # Immediate Micro-Practice Drill
                     if qres.get("micro_practice_prompt"):
@@ -1175,6 +1459,7 @@ with tab_learn:
                             if st.button("Now advance to next tense ➔", type="primary"):
                                 st.session_state.completed_card_steps.add(5)
                                 st.session_state.completed_tenses.add(st.session_state.active_tense_index)
+                                st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
                                 st.session_state.active_tense_index += 1
                                 st.session_state.active_card_step = 1
                                 st.session_state.completed_card_steps = set()
@@ -1183,6 +1468,8 @@ with tab_learn:
                                 st.session_state.quiz_eval_result = None
                                 auto_save_current_session()
                                 st.rerun()
+
+            render_incontext_coach(current_tense_name, 5, pack, target_l, native_l)
 
             st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
             col_prev, col_space = st.columns([1.2, 4])
@@ -1193,6 +1480,7 @@ with tab_learn:
                     st.rerun()
 
         st.markdown('</section>', unsafe_allow_html=True)
+
 
 # Persist current session snapshot to SQLite
 auto_save_current_session()

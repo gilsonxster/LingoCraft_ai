@@ -73,11 +73,18 @@ CRITICAL: Provide an empathetic, constructive speech validation report written e
             )
             data = json.loads(response.text)
             data["accuracy_score"] = max(score, data.get("accuracy_score", score))
+            data["diff_html"] = algo_result.get("diff_html", "")
+            data["word_diff"] = algo_result.get("word_diff", [])
+            data["extra_words"] = algo_result.get("extra_words", [])
             return data
         except Exception as e:
             print(f"Speech evaluation fallback: {e}")
 
     # Localized offline algorithmic evaluation
+    diff_html = algo_result.get("diff_html", "")
+    word_diff = algo_result.get("word_diff", [])
+    extra_words = algo_result.get("extra_words", [])
+
     if score >= 80:
         return {
             "accuracy_score": score,
@@ -86,7 +93,10 @@ CRITICAL: Provide an empathetic, constructive speech validation report written e
             "phonetic_breakdown": "Vogais claras e sílaba tônica bem definida",
             "actionable_tip": "Mantenha esse mesmo ritmo ao falar em conversas reais!" if is_pt else "Keep this exact rhythm when speaking in real conversations!",
             "requires_micro_practice": False,
-            "micro_practice_drill": ""
+            "micro_practice_drill": "",
+            "diff_html": diff_html,
+            "word_diff": word_diff,
+            "extra_words": extra_words
         }
     elif score >= 50:
         return {
@@ -96,7 +106,10 @@ CRITICAL: Provide an empathetic, constructive speech validation report written e
             "phonetic_breakdown": "Atenção à precisão das vogais",
             "actionable_tip": "Fique atento às letras mudas e certifique-se de que a sílaba principal receba a ênfase correta." if is_pt else "Be mindful of silent letters and ensure the primary syllable receives emphatic stress.",
             "requires_micro_practice": True,
-            "micro_practice_drill": f"Tente repetir devagar: '{target_phrase}' focando no verbo principal." if is_pt else f"Try repeating slowly: '{target_phrase}' focusing on the main verb."
+            "micro_practice_drill": f"Tente repetir devagar: '{target_phrase}' focando no verbo principal." if is_pt else f"Try repeating slowly: '{target_phrase}' focusing on the main verb.",
+            "diff_html": diff_html,
+            "word_diff": word_diff,
+            "extra_words": extra_words
         }
     else:
         return {
@@ -106,5 +119,9 @@ CRITICAL: Provide an empathetic, constructive speech validation report written e
             "phonetic_breakdown": "Divida cada sílaba pausadamente",
             "actionable_tip": "Fale calmamente perto do microfone, praticando uma palavra por vez." if is_pt else "Speak slowly and clearly into the microphone. Practice individual words first!",
             "requires_micro_practice": True,
-            "micro_practice_drill": f"Repita 3 vezes em voz alta: '{target_phrase}'" if is_pt else f"Repeat 3 times aloud: '{target_phrase}'"
+            "micro_practice_drill": f"Repita 3 vezes em voz alta: '{target_phrase}'" if is_pt else f"Repeat 3 times aloud: '{target_phrase}'",
+            "diff_html": diff_html,
+            "word_diff": word_diff,
+            "extra_words": extra_words
         }
+
