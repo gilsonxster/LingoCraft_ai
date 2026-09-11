@@ -1,5 +1,6 @@
 import io
 import difflib
+import functools
 from gtts import gTTS
 import speech_recognition as sr
 
@@ -31,6 +32,7 @@ def resolve_lang_code(lang_name: str) -> str:
         return cleaned
     return 'es'
 
+@functools.lru_cache(maxsize=256)
 def generate_tts_audio(text: str, lang: str = 'es') -> bytes:
     code = resolve_lang_code(lang)
     try:

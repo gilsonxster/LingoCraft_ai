@@ -86,10 +86,45 @@ def test_lingocraft_improvements():
     )
     assert len(coach_reply_pt) > 20
     assert "calor" in coach_reply_pt.lower()
-    print("    Coach PT Reply Sample: ", coach_reply_pt[:100], "...")
+    # 6. Test Zero-Latency TTS Audio Caching
+    print("[6] Testing Zero-Latency TTS Audio Caching...")
+    import time
+    t0 = time.time()
+    audio1 = generate_tts_audio("haciendo", lang="es")
+    t1 = time.time()
+    audio2 = generate_tts_audio("haciendo", lang="es")
+    t2 = time.time()
+    
+    assert len(audio1) > 0, "TTS audio bytes should not be empty!"
+    assert audio1 == audio2, "Cached audio bytes must match exactly!"
+    cache_duration = t2 - t1
+    print(f"    Initial TTS Call Duration: {t1 - t0:.4f}s | Cached Call Duration: {cache_duration:.6f}s")
+    assert cache_duration < 0.001, "Cached TTS call should execute in less than 1ms!"
+
+    # 7. Test Session Manager Persistence and State Dict Serialization
+    print("[7] Testing Session Manager Persistence...")
+    import session_manager
+    test_sid = "test-lingo-session-001"
+    sample_state = {
+        "current_curriculum": plan_en,
+        "active_tense_index": 2,
+        "active_card_step": 3,
+        "completed_tenses": [0, 1],
+        "completed_card_steps": [1, 2],
+        "chat_history": [{"role": "user", "content": "Hello Coach!"}],
+    }
+    saved_ok = session_manager.save_session(test_sid, sample_state)
+    assert saved_ok is True, "Session save failed!"
+    loaded = session_manager.load_session(test_sid)
+    assert loaded is not None, "Session load returned None!"
+    assert loaded["active_tense_index"] == 2
+    assert loaded["active_card_step"] == 3
+    assert 1 in loaded["completed_tenses"]
+    session_manager.delete_session(test_sid)
+    print("    Session successfully saved, retrieved, validated, and cleaned up.")
 
     print("==================================================")
-    print("ALL 5 IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
+    print("ALL 7 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
     print("==================================================")
 
 if __name__ == '__main__':
