@@ -33,6 +33,7 @@ def init_db(db_path: str = DB_PATH) -> None:
                 current_curriculum_json TEXT NOT NULL,
                 chat_history_json TEXT NOT NULL DEFAULT '[]',
                 needs_review_tenses_json TEXT NOT NULL DEFAULT '[]',
+                xp_points INTEGER NOT NULL DEFAULT 0,
                 created_at REAL NOT NULL,
                 updated_at REAL NOT NULL
             )
@@ -41,10 +42,58 @@ def init_db(db_path: str = DB_PATH) -> None:
         cols = [c[1] for c in cursor.fetchall()]
         if "needs_review_tenses_json" not in cols:
             cursor.execute("ALTER TABLE study_sessions ADD COLUMN needs_review_tenses_json TEXT NOT NULL DEFAULT '[]'")
+        if "xp_points" not in cols:
+            cursor.execute("ALTER TABLE study_sessions ADD COLUMN xp_points INTEGER NOT NULL DEFAULT 0")
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_sessions_updated_at ON study_sessions(updated_at DESC)
         """)
         conn.commit()
+
+
+def get_rank_for_xp(xp: int) -> Dict[str, Any]:
+    """
+    Calculates craftsman rank, icon, level number, and progress ratio for a given XP count.
+    Levels:
+      Level 1: Novice Explorer (0 - 100 XP)
+      Level 2: Apprentice Speaker (101 - 250 XP)
+      Level 3: Confident Conversationalist (251 - 500 XP)
+      Level 4: Master Craftsman (500+ XP)
+    """
+    xp = max(0, int(xp))
+    tiers = [
+        {"level": 1, "name": "Novice Explorer", "icon": "🌱", "min_xp": 0, "max_xp": 100},
+        {"level": 2, "name": "Apprentice Speaker", "icon": "⚔️", "min_xp": 100, "max_xp": 250},
+        {"level": 3, "name": "Confident Conversationalist", "icon": "🗣️", "min_xp": 250, "max_xp": 500},
+        {"level": 4, "name": "Master Craftsman", "icon": "🏆", "min_xp": 500, "max_xp": 1000},
+    ]
+    for tier in tiers:
+        if xp < tier["max_xp"]:
+            span = tier["max_xp"] - tier["min_xp"]
+            prog = (xp - tier["min_xp"]) / span if span > 0 else 1.0
+            return {
+                "level": tier["level"],
+                "name": tier["name"],
+                "icon": tier["icon"],
+                "label": f"{tier['icon']} Level {tier['level']}: {tier['name']}",
+                "current_xp": xp,
+                "min_xp": tier["min_xp"],
+                "max_xp": tier["max_xp"],
+                "next_level_xp": tier["max_xp"],
+                "xp_needed": tier["max_xp"] - xp,
+                "progress_ratio": min(max(prog, 0.0), 1.0)
+            }
+    return {
+        "level": 4,
+        "name": "Master Craftsman",
+        "icon": "🏆",
+        "label": "🏆 Level 4: Master Craftsman (Max Rank)",
+        "current_xp": xp,
+        "min_xp": 500,
+        "max_xp": 1000,
+        "next_level_xp": 1000,
+        "xp_needed": 0,
+        "progress_ratio": 1.0
+    }
 
 
 def generate_session_id() -> str:
@@ -67,6 +116,7 @@ def save_session(session_id: str, state_dict: Dict[str, Any], db_path: str = DB_
         completed_card_steps = list(state_dict.get("completed_card_steps", []))
         needs_review_tenses = list(state_dict.get("needs_review_tenses", []))
         chat_history = state_dict.get("chat_history", [])
+        xp_points = int(state_dict.get("xp_points", 0))
 
         now = time.time()
 
@@ -78,9 +128,9 @@ def save_session(session_id: str, state_dict: Dict[str, Any], db_path: str = DB_
                     active_tense_index, active_card_step,
                     completed_tenses_json, completed_card_steps_json,
                     current_curriculum_json, chat_history_json,
-                    needs_review_tenses_json,
+                    needs_review_tenses_json, xp_points,
                     created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(session_id) DO UPDATE SET
                     topic = excluded.topic,
                     target_language = excluded.target_language,
@@ -92,6 +142,7 @@ def save_session(session_id: str, state_dict: Dict[str, Any], db_path: str = DB_
                     current_curriculum_json = excluded.current_curriculum_json,
                     chat_history_json = excluded.chat_history_json,
                     needs_review_tenses_json = excluded.needs_review_tenses_json,
+                    xp_points = excluded.xp_points,
                     updated_at = excluded.updated_at
             """, (
                 session_id,
@@ -105,6 +156,7 @@ def save_session(session_id: str, state_dict: Dict[str, Any], db_path: str = DB_
                 json.dumps(curriculum),
                 json.dumps(chat_history),
                 json.dumps(needs_review_tenses),
+                xp_points,
                 now,
                 now
             ))
@@ -127,7 +179,7 @@ def load_session(session_id: str, db_path: str = DB_PATH) -> Optional[Dict[str, 
                     active_tense_index, active_card_step,
                     completed_tenses_json, completed_card_steps_json,
                     current_curriculum_json, chat_history_json,
-                    needs_review_tenses_json,
+                    needs_review_tenses_json, xp_points,
                     created_at, updated_at
                 FROM study_sessions
                 WHERE session_id = ?
@@ -143,6 +195,13 @@ def load_session(session_id: str, db_path: str = DB_PATH) -> Optional[Dict[str, 
                 except Exception:
                     needs_rev = set()
 
+            xp_pts = 0
+            if len(row) > 11 and row[11] is not None:
+                try:
+                    xp_pts = int(row[11])
+                except Exception:
+                    xp_pts = 0
+
             return {
                 "session_id": row[0],
                 "topic": row[1],
@@ -155,8 +214,9 @@ def load_session(session_id: str, db_path: str = DB_PATH) -> Optional[Dict[str, 
                 "current_curriculum": json.loads(row[8]),
                 "chat_history": json.loads(row[9]),
                 "needs_review_tenses": needs_rev,
-                "created_at": row[11],
-                "updated_at": row[12],
+                "xp_points": xp_pts,
+                "created_at": row[12],
+                "updated_at": row[13],
             }
     except Exception as e:
         print(f"Error loading session {session_id}: {e}")
@@ -174,7 +234,7 @@ def list_recent_sessions(limit: int = 5, db_path: str = DB_PATH) -> List[Dict[st
                     session_id, topic, target_language, native_language,
                     active_tense_index, active_card_step,
                     completed_tenses_json, current_curriculum_json,
-                    needs_review_tenses_json,
+                    needs_review_tenses_json, xp_points,
                     updated_at
                 FROM study_sessions
                 ORDER BY updated_at DESC
@@ -194,6 +254,8 @@ def list_recent_sessions(limit: int = 5, db_path: str = DB_PATH) -> List[Dict[st
                     completed_tenses = []
                     needs_review = []
 
+                xp_val = r[9] if len(r) > 9 and r[9] is not None else 0
+
                 results.append({
                     "session_id": r[0],
                     "topic": r[1],
@@ -204,7 +266,8 @@ def list_recent_sessions(limit: int = 5, db_path: str = DB_PATH) -> List[Dict[st
                     "completed_count": len(completed_tenses),
                     "needs_review_count": len(needs_review),
                     "total_tenses": total_tenses,
-                    "updated_at": r[9]
+                    "xp_points": xp_val,
+                    "updated_at": r[10]
                 })
             return results
     except Exception as e:

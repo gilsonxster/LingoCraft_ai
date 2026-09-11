@@ -190,10 +190,59 @@ def test_lingocraft_improvements():
     session_manager.delete_session(test_sid_sr)
     print("    3-tier mastery states (Mastered, Needs Review, Active) successfully verified.")
 
+    # 11. Test Gamification & XP Points System
+    print("[11] Testing Gamification & Craftsman XP Points System...")
+    r1 = session_manager.get_rank_for_xp(0)
+    assert r1["level"] == 1 and r1["name"] == "Novice Explorer"
+    assert r1["progress_ratio"] == 0.0
+
+    r2 = session_manager.get_rank_for_xp(150)
+    assert r2["level"] == 2 and r2["name"] == "Apprentice Speaker"
+    assert r2["min_xp"] == 100 and r2["max_xp"] == 250
+
+    r3 = session_manager.get_rank_for_xp(350)
+    assert r3["level"] == 3 and r3["name"] == "Confident Conversationalist"
+
+    r4 = session_manager.get_rank_for_xp(600)
+    assert r4["level"] == 4 and r4["name"] == "Master Craftsman"
+
+    r_max = session_manager.get_rank_for_xp(1500)
+    assert r_max["level"] == 4 and r_max["progress_ratio"] == 1.0
+
+    # Test SQLite persistence of XP points
+    test_sid_xp = "lingo-test-xp"
+    test_state_xp = {
+        "current_curriculum": {
+            "topic": "Spanish XP Test",
+            "target_language": "Spanish",
+            "native_language": "English",
+            "tenses_roadmap": ["Presente"]
+        },
+        "active_tense_index": 0,
+        "active_card_step": 1,
+        "completed_tenses": [0],
+        "needs_review_tenses": [],
+        "completed_card_steps": [1, 2],
+        "chat_history": [],
+        "xp_points": 210
+    }
+    session_manager.save_session(test_sid_xp, test_state_xp)
+    loaded_xp = session_manager.load_session(test_sid_xp)
+    assert loaded_xp is not None
+    assert loaded_xp["xp_points"] == 210
+
+    recents_xp = session_manager.list_recent_sessions(limit=5)
+    matched_xp = [r for r in recents_xp if r["session_id"] == test_sid_xp]
+    assert len(matched_xp) == 1
+    assert matched_xp[0]["xp_points"] == 210
+    session_manager.delete_session(test_sid_xp)
+    print("    Gamification levels, tier progression, and SQLite persistence verified.")
+
     print("==================================================")
-    print("ALL 10 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
+    print("ALL 11 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
     print("==================================================")
 
 if __name__ == '__main__':
     test_lingocraft_improvements()
+
 

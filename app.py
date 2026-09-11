@@ -220,6 +220,21 @@ st.markdown("""
         padding: 4px 0;
         border-bottom: 1px solid #F1F3F4;
     }
+    .xp-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: linear-gradient(135deg, #FEF7E0 0%, #FEEFC3 100%);
+        color: #7C4A00;
+        font-weight: 600;
+        font-size: 0.8125rem;
+        padding: 3px 12px;
+        border-radius: 9999px;
+        border: 1px solid #F9AB00;
+        margin-left: 10px;
+        box-shadow: 0 1px 2px rgba(60, 64, 67, 0.08);
+        letter-spacing: 0.01rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -277,9 +292,25 @@ def auto_save_current_session():
             "needs_review_tenses": list(st.session_state.get("needs_review_tenses", set())),
             "completed_card_steps": list(st.session_state.get("completed_card_steps", set())),
             "chat_history": st.session_state.get("chat_history", []),
+            "xp_points": int(st.session_state.get("xp_points", 0)),
         }
         session_manager.save_session(st.session_state.session_id, state_dict)
     sync_url_params()
+
+# Gamification: Idempotent XP Points Awarding
+def award_xp(amount: int, event_id: str, reason: str):
+    """
+    Awards XP points idempotently per session so repeated interactions don't inflate scores.
+    Triggers an instant celebratory toast and auto-saves progress.
+    """
+    if "awarded_xp_events" not in st.session_state:
+        st.session_state.awarded_xp_events = set()
+    if event_id not in st.session_state.awarded_xp_events:
+        st.session_state.awarded_xp_events.add(event_id)
+        st.session_state.xp_points = st.session_state.get("xp_points", 0) + amount
+        auto_save_current_session()
+        st.toast(f"⚡ +{amount} XP: {reason}!", icon="✨")
+        log_ve_event("xp_awarded", "reward", {"amount": amount, "event_id": event_id, "total_xp": st.session_state.xp_points})
 
 # Navigation Helper Callbacks
 def select_tense_and_study(idx: int):
@@ -469,6 +500,12 @@ if "micro_practice_result" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+if "xp_points" not in st.session_state:
+    st.session_state.xp_points = 0
+
+if "awarded_xp_events" not in st.session_state:
+    st.session_state.awarded_xp_events = set()
+
 
 # Synchronize session ID with browser localStorage to preserve state across browser restarts
 components.html(f"""
@@ -527,6 +564,8 @@ with st.sidebar:
                 st.session_state.completed_card_steps = set()
                 st.session_state.completed_tenses = set()
                 st.session_state.needs_review_tenses = set()
+                st.session_state.xp_points = 0
+                st.session_state.awarded_xp_events = set()
                 st.session_state.current_pack = None
                 st.session_state.speech_eval_result = None
                 st.session_state.quiz_eval_result = None
@@ -552,6 +591,8 @@ with st.sidebar:
                     st.session_state.needs_review_tenses = set(loaded.get("needs_review_tenses", []))
                     st.session_state.completed_card_steps = set(loaded["completed_card_steps"])
                     st.session_state.chat_history = loaded["chat_history"]
+                    st.session_state.xp_points = loaded.get("xp_points", 0)
+                    st.session_state.awarded_xp_events = set()
                     st.session_state.current_pack = None
                     st.session_state.speech_eval_result = None
                     st.session_state.quiz_eval_result = None
@@ -570,7 +611,9 @@ with st.sidebar:
                 t_str = time.strftime("%b %d, %H:%M", time.localtime(r["updated_at"]))
                 rev_n = r.get("needs_review_count", 0)
                 rev_suffix = f" | 🔄 {rev_n}" if rev_n > 0 else ""
-                c_lbl = f"{r['topic'][:16]}... (🏆 {r['completed_count']}/{r['total_tenses']}{rev_suffix})"
+                xp_n = r.get("xp_points", 0)
+                xp_suffix = f" | ⚡ {xp_n} XP" if xp_n > 0 else ""
+                c_lbl = f"{r['topic'][:14]}... (🏆 {r['completed_count']}/{r['total_tenses']}{xp_suffix})"
                 if st.button(f"▶️ {c_lbl}", key=f"rec_btn_{r['session_id']}", help=f"Code: {r['session_id']} | Updated: {t_str}", use_container_width=True):
                     loaded = session_manager.load_session(r["session_id"])
                     if loaded:
@@ -583,6 +626,8 @@ with st.sidebar:
                         st.session_state.needs_review_tenses = set(loaded.get("needs_review_tenses", []))
                         st.session_state.completed_card_steps = set(loaded["completed_card_steps"])
                         st.session_state.chat_history = loaded["chat_history"]
+                        st.session_state.xp_points = loaded.get("xp_points", 0)
+                        st.session_state.awarded_xp_events = set()
                         st.session_state.current_pack = None
                         st.session_state.speech_eval_result = None
                         st.session_state.quiz_eval_result = None
@@ -738,8 +783,9 @@ if st.session_state.get("session_loaded_msg"):
     st.session_state.session_loaded_msg = None
 
 # Main Area Layout
+rank_info = session_manager.get_rank_for_xp(st.session_state.get("xp_points", 0))
 st.markdown('<h1 class="main-title">🎓 LingoCraft AI</h1>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Interactive foreign language coach with 5-stage active recall & speech practice.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-title">Interactive foreign language coach with 5-stage active recall & speech practice. <span class="xp-badge">⚡ <strong>{st.session_state.get("xp_points", 0)} XP</strong> · {rank_info["label"]}</span></p>', unsafe_allow_html=True)
 
 # Main Navigation Tabs
 tab_learn, tab_coach, tab_curriculum = st.tabs(
@@ -751,7 +797,7 @@ tab_learn, tab_coach, tab_curriculum = st.tabs(
 with tab_curriculum:
     log_ve_event("tab_curriculum_view", "impression")
     st.subheader(f"Topic: {st.session_state.current_curriculum.get('topic')}")
-    col_meta1, col_meta2, col_meta3, col_meta4 = st.columns(4)
+    col_meta1, col_meta2, col_meta3, col_meta4, col_meta5 = st.columns(5)
     with col_meta1:
         st.metric("Target language", st.session_state.current_curriculum.get('target_language', 'Spanish'))
     with col_meta2:
@@ -762,9 +808,18 @@ with tab_curriculum:
     with col_meta4:
         rev_count = len(st.session_state.needs_review_tenses)
         st.metric("Needs review", f"{rev_count} Stages")
+    with col_meta5:
+        st.metric("Experience (XP)", f"⚡ {st.session_state.get('xp_points', 0)} XP", delta=f"{rank_info['icon']} Lvl {rank_info['level']}")
 
-    prog_val = comp_count / max(total_tenses, 1)
-    st.progress(prog_val)
+    col_prog1, col_prog2 = st.columns(2)
+    with col_prog1:
+        st.caption(f"🗺️ Curriculum Completion: **{comp_count} / {total_tenses} Stages**")
+        prog_val = comp_count / max(total_tenses, 1)
+        st.progress(prog_val)
+    with col_prog2:
+        st.caption(f"🎖️ Craftsman Rank Progress: **{rank_info['name']}** ({rank_info['current_xp']} / {rank_info['next_level_xp']} XP)")
+        st.progress(rank_info['progress_ratio'])
+
     st.info(st.session_state.current_curriculum.get("description", ""))
 
     st.markdown("---")
@@ -999,6 +1054,7 @@ with tab_learn:
             st.markdown(f"### 🎯 Stage {st.session_state.active_tense_index + 1} of {len(roadmap)}: **{current_tense_name}**")
         with col_hdr_skip:
             if st.button("🏆 Mark tense as mastered ➔", help="Jump to the next tense if you already know this form", use_container_width=True):
+                award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
                 st.session_state.completed_tenses.add(st.session_state.active_tense_index)
                 st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
                 st.session_state.active_tense_index += 1
@@ -1209,6 +1265,10 @@ with tab_learn:
             if st.session_state.speech_eval_result:
                 res = st.session_state.speech_eval_result
                 score = res.get("accuracy_score", 80)
+                if score >= 75:
+                    award_xp(25, f"speech_verified_{current_tense_name}", "Speech pronunciation accuracy (75%+)")
+                else:
+                    award_xp(10, f"speech_attempt_{current_tense_name}", "Voice practice vocalization effort")
 
                 st.markdown("### Evaluation feedback:")
                 st.progress(score / 100)
@@ -1307,6 +1367,7 @@ with tab_learn:
             if st.session_state.quiz_eval_result:
                 qres = st.session_state.quiz_eval_result
                 if qres["is_correct"]:
+                    award_xp(20, f"quiz_solved_{current_tense_name}", "Conjugation challenge passed")
                     st.session_state.completed_card_steps.add(5)
                     st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
                     st.markdown(f"<div class='feedback-box-success' role='status' aria-live='polite'><h3>{qres.get('headline')}</h3><p>{qres.get('feedback')}</p></div>", unsafe_allow_html=True)
@@ -1314,6 +1375,7 @@ with tab_learn:
 
                     # Advance to Next Tense Button
                     if st.button("🏆 Complete tense and advance to next ➔", type="primary", use_container_width=True):
+                        award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
                         st.session_state.completed_tenses.add(st.session_state.active_tense_index)
                         st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
                         st.session_state.active_tense_index += 1
@@ -1346,11 +1408,13 @@ with tab_learn:
                                     if 0 <= correct_mp_idx < len(mp_options) and user_mp_choice == mp_options[correct_mp_idx]:
                                         st.success(f"¡Bien hecho! {qres.get('micro_practice_explanation')}")
                                         st.session_state.micro_practice_result = True
+                                        award_xp(15, f"resilience_{current_tense_name}", "Resilience bonus: Review drill cleared")
                                     else:
                                         st.error("Not quite yet. Remember the core rule and try once more.")
 
                         if st.session_state.micro_practice_result:
                             if st.button("Now advance to next tense ➔", type="primary"):
+                                award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
                                 st.session_state.completed_card_steps.add(5)
                                 st.session_state.completed_tenses.add(st.session_state.active_tense_index)
                                 st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
