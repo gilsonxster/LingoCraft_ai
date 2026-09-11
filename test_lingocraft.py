@@ -238,9 +238,65 @@ def test_lingocraft_improvements():
     session_manager.delete_session(test_sid_xp)
     print("    Gamification levels, tier progression, and SQLite persistence verified.")
 
+    # 12. Test Next Topic Recommendation Engine & Unstudied Verb Selection
+    print("[12] Testing Next Topic Recommendation Engine & Unstudied Filtering...")
+    studied_db = session_manager.get_all_studied_topics()
+    assert isinstance(studied_db, list), "get_all_studied_topics must return a list"
+
+    from curriculum_data import get_recommended_next_topics, build_spanish_tener_pack
+    recs_spanish = get_recommended_next_topics(
+        target_lang="Spanish",
+        current_topic="Spanish: Irregular Verbs — Verbo 'Hacer'",
+        studied_topics=["Spanish: Irregular Verbs — Verbo 'Hacer'"],
+        count=3
+    )
+    assert len(recs_spanish) >= 1, "Should recommend at least one unstudied topic"
+    assert all("verb" in r and "topic" in r and "pedagogical_hook" in r for r in recs_spanish), "Missing required topic fields"
+    for r in recs_spanish:
+        assert "hacer" not in r["verb"].lower() and "hacer" not in r["topic"].lower()
+
+    # When both 'hacer' and 'tener' have been studied, verify next recommendation excludes both
+    recs_next = get_recommended_next_topics(
+        target_lang="Spanish",
+        current_topic="Spanish: Irregular Verbs — Verbo 'Tener'",
+        studied_topics=["Spanish: Irregular Verbs — Verbo 'Hacer'", "Spanish: Irregular Verbs — Verbo 'Tener'"],
+        count=3
+    )
+    assert len(recs_next) >= 1
+    assert "tener" not in recs_next[0]["verb"].lower()
+    assert "hacer" not in recs_next[0]["verb"].lower()
+    assert recs_next[0]["verb"].lower() == "ir", f"Expected 'ir' to be recommended next, got {recs_next[0]['verb']}"
+
+    # Test shuffle functionality
+    shuffled_recs = get_recommended_next_topics(
+        target_lang="Spanish",
+        current_topic="hacer",
+        studied_topics=[],
+        count=3,
+        shuffle=True,
+        seed=123
+    )
+    assert len(shuffled_recs) == 3
+    assert all("verb" in r for r in shuffled_recs)
+
+    # Test curated pack for 'tener'
+    tener_pack_en = build_spanish_tener_pack(native_lang="English")
+    tener_pack_pt = build_spanish_tener_pack(native_lang="Portuguese")
+    assert len(tener_pack_en) == 5
+    assert len(tener_pack_pt) == 5
+    assert "Presente de Indicativo" in tener_pack_en
+    assert "tengo" in tener_pack_en["Presente de Indicativo"].card1_concept.rule.lower()
+
+    # Test get_curriculum_or_fallback routing for 'tener'
+    curric_tener = get_curriculum_or_fallback("Spanish: Irregular Verbs — Verbo 'Tener'", "Spanish", "English")
+    assert "Tener" in curric_tener.title
+    assert len(curric_tener.tenses_roadmap) == 5
+    print("    Next topic recommendation engine, unstudied filtering, and curated pack verified.")
+
     print("==================================================")
-    print("ALL 11 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
+    print("ALL 12 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
     print("==================================================")
+
 
 if __name__ == '__main__':
     test_lingocraft_improvements()

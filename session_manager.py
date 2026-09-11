@@ -288,3 +288,17 @@ def delete_session(session_id: str, db_path: str = DB_PATH) -> bool:
     except Exception as e:
         print(f"Error deleting session {session_id}: {e}")
         return False
+
+
+def get_all_studied_topics(db_path: str = DB_PATH) -> List[str]:
+    """Retrieves all unique topics previously recorded in SQLite study sessions."""
+    try:
+        init_db(db_path)
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT topic FROM study_sessions")
+            rows = cursor.fetchall()
+            return [r[0] for r in rows if r[0]]
+    except Exception as e:
+        print(f"Error fetching studied topics: {e}")
+        return []

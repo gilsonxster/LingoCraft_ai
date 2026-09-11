@@ -18,8 +18,15 @@ load_dotenv()
 import importlib
 import session_manager
 importlib.reload(session_manager)
+import curriculum_data
+importlib.reload(curriculum_data)
 from lingocraft_agent import LingoCraftOrchestrator
-from curriculum_data import SPANISH_HACER_CURRICULUM, CURATED_CURRICULA, get_curriculum_or_fallback
+from curriculum_data import (
+    SPANISH_HACER_CURRICULUM,
+    CURATED_CURRICULA,
+    get_curriculum_or_fallback,
+    get_recommended_next_topics,
+)
 from audio_utils import generate_tts_audio, transcribe_audio_bytes
 
 # Set page configuration
@@ -345,6 +352,48 @@ def toggle_tense_review(idx: int):
         st.session_state.needs_review_tenses.add(idx)
         st.session_state.completed_tenses.discard(idx)
     auto_save_current_session()
+
+def start_next_curriculum_topic(new_topic_title: str, target_lang: str, native_lang: str):
+    """
+    Transitions learner smoothly to a new topic or irregular verb:
+    - Awards milestone XP bonus for completing previous topic
+    - Loads offline curated course or AI-generated curriculum
+    - Resets active stage to Stage 1 and clears tense mastery for the new topic
+    - Preserves overall XP points and chat history
+    - Auto-saves into SQLite session and triggers UI update
+    """
+    curr_topic = st.session_state.current_curriculum.get("topic", "")
+    award_xp(100, f"curriculum_completed_{curr_topic}", f"Mastered {curr_topic}")
+    log_ve_event("next_topic_started", "click", {"new_topic": new_topic_title, "target_lang": target_lang})
+
+    new_t_lower = new_topic_title.lower()
+    if "tener" in new_t_lower or "hacer" in new_t_lower or not st.session_state.get("api_key"):
+        curriculum_obj = get_curriculum_or_fallback(new_topic_title, target_lang, native_lang)
+        st.session_state.current_curriculum = {
+            "topic": curriculum_obj.title,
+            "target_language": curriculum_obj.target_language,
+            "target_language_code": curriculum_obj.target_language_code,
+            "native_language": curriculum_obj.native_language,
+            "description": curriculum_obj.description,
+            "tenses_roadmap": curriculum_obj.tenses_roadmap,
+        }
+    else:
+        plan = orchestrator.initialize_curriculum(new_topic_title, target_lang, native_lang)
+        st.session_state.current_curriculum = plan
+
+    st.session_state.active_tense_index = 0
+    st.session_state.active_card_step = 1
+    st.session_state.completed_card_steps = set()
+    st.session_state.completed_tenses = set()
+    st.session_state.needs_review_tenses = set()
+    st.session_state.current_pack = None
+    st.session_state.speech_eval_result = None
+    st.session_state.quiz_eval_result = None
+    st.session_state.micro_practice_result = None
+    st.session_state.main_tab = MAIN_TAB_LEARN
+    auto_save_current_session()
+    st.toast(f"🚀 Started Next Topic: {new_topic_title}!", icon="🎯")
+    st.rerun()
 
 def render_incontext_coach(current_tense_name: str, step_num: int, pack, target_l: str, native_l: str):
     """
@@ -749,6 +798,9 @@ with st.sidebar:
             help=f"Click to study Stage {idx+1}: {tense}"
         )
 
+    if is_curriculum_completed:
+        st.success("🎉 Roadmap Mastered! Check the main screen to start your next recommended topic.")
+
     st.markdown("---")
     if st.button("🔄 Reset progress and start over", use_container_width=True):
         st.session_state.active_tense_index = 0
@@ -1001,23 +1053,130 @@ with tab_learn:
     # Check if all tenses completed
     if is_curriculum_completed:
         st.balloons()
-        st.success("🎉 ¡Felicitaciones! You have successfully mastered all tenses in this curriculum!")
-        st.markdown(f"### Summary of mastery: **{st.session_state.current_curriculum.get('topic')}**")
-        st.write("You have conquered each grammatical form with pronunciation, speech validation, and conjugation quiz challenges.")
-        col_rev, col_new = st.columns(2)
+        curr_topic = st.session_state.current_curriculum.get("topic", "Curriculum Topic")
+        award_xp(100, f"curriculum_completed_{curr_topic}", f"Completed Roadmap: {curr_topic}")
+        log_ve_event("curriculum_completed_view", "impression", {"topic": curr_topic, "total_xp": st.session_state.xp_points})
+
+        target_l = st.session_state.current_curriculum.get("target_language", "Spanish")
+        native_l = st.session_state.current_curriculum.get("native_language", "English")
+        curr_rank = session_manager.get_rank_for_xp(st.session_state.get("xp_points", 0))
+
+        # Celebration Banner
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #1A73E8 0%, #137333 100%); border-radius: 14px; padding: 24px 28px; color: white; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.15);">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                <div style="flex: 1; min-width: 260px;">
+                    <span style="background: rgba(255,255,255,0.22); padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05rem;">
+                        🏆 Roadmap Completed
+                    </span>
+                    <h2 style="margin: 8px 0 6px 0; color: white; font-size: 1.65rem; font-weight: 700;">
+                        ¡Felicitaciones! You've Mastered This Curriculum!
+                    </h2>
+                    <p style="margin: 0; font-size: 0.95rem; opacity: 0.95; line-height: 1.45;">
+                        You have mastered all <strong>{total_tenses} stages</strong> in <strong>{curr_topic}</strong> across rules, bilingual examples, pronunciation, speech validation, and quizzes!
+                    </p>
+                </div>
+                <div style="text-align: right; min-width: 140px; background: rgba(255,255,255,0.18); padding: 12px 18px; border-radius: 12px; backdrop-filter: blur(4px);">
+                    <div style="font-size: 0.75rem; text-transform: uppercase; opacity: 0.9; letter-spacing: 0.03rem;">Total Experience</div>
+                    <div style="font-size: 1.6rem; font-weight: 800; color: #FFE082;">⚡ {st.session_state.get('xp_points', 0)} XP</div>
+                    <div style="font-size: 0.8rem; font-weight: 600;">{curr_rank['badge']} {curr_rank['label']}</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Recommendation Engine: Query unstudied topics
+        studied_topics = session_manager.get_all_studied_topics()
+        shuffle_seed = st.session_state.get("next_topic_shuffle_seed", 0)
+        recommendations = get_recommended_next_topics(
+            target_lang=target_l,
+            current_topic=curr_topic,
+            studied_topics=studied_topics,
+            count=3,
+            shuffle=(shuffle_seed > 0),
+            seed=shuffle_seed
+        )
+
+        st.markdown("### 🚀 Ready for Your Next Challenge?")
+        st.markdown("Keep your learning streak going! Choose an unstudied high-frequency verb to build your language fluency:")
+
+        if recommendations:
+            hero = recommendations[0]
+            hero_verb = hero["verb"].capitalize()
+
+            # Hero Recommendation Card
+            st.markdown(f"""
+            <div style="background: #F8FAFD; border: 2px solid #1A73E8; border-radius: 12px; padding: 20px; margin: 12px 0 14px 0; box-shadow: 0 2px 8px rgba(26, 115, 232, 0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="background: #E8F0FE; color: #174EA6; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.03rem;">
+                        ⭐ Recommended Next Step
+                    </span>
+                    <span style="font-size: 0.8125rem; color: #5F6368; font-weight: 500;">
+                        {hero.get('category', 'Irregular Verb')}
+                    </span>
+                </div>
+                <h3 style="margin: 4px 0 6px 0; color: #202124; font-size: 1.35rem;">
+                    Next Topic: <strong>{hero['topic']}</strong> <span style="font-size: 0.95rem; font-weight: 400; color: #5F6368;">— "{hero.get('meaning', '')}"</span>
+                </h3>
+                <p style="color: #3C4043; font-size: 0.925rem; margin: 0; line-height: 1.45;">
+                    💡 {hero.get('pedagogical_hook', '')}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.button(
+                f"🚀 Start Next Topic: {hero_verb} ➔ (+100 XP Bonus)",
+                key="btn_start_hero_next_topic",
+                type="primary",
+                use_container_width=True,
+                help=f"Begin learning {hero['topic']} with active-recall flashcards and speech challenges"
+            ):
+                start_next_curriculum_topic(hero["topic"], target_l, native_l)
+
+            # Secondary / Alternative Unstudied Topics
+            if len(recommendations) > 1:
+                st.markdown("<div style='font-size: 0.875rem; font-weight: 600; color: #5F6368; margin: 16px 0 8px 0;'>Or explore another high-frequency unstudied topic:</div>", unsafe_allow_html=True)
+                alt_cols = st.columns(len(recommendations) - 1)
+                for a_i, alt_item in enumerate(recommendations[1:]):
+                    with alt_cols[a_i]:
+                        alt_v = alt_item["verb"].capitalize()
+                        st.markdown(f"""
+                        <div style="background: var(--gmat-sys-color-surface-variant); border: 1px solid var(--gmat-sys-color-outline); border-radius: 10px; padding: 12px; min-height: 115px; margin-bottom: 8px;">
+                            <div style="font-size: 0.7rem; font-weight: 700; color: #5F6368; text-transform: uppercase;">{alt_item.get('category', '')}</div>
+                            <div style="font-weight: 600; color: #202124; margin: 2px 0;">{alt_v} <span style="font-weight: 400; font-size: 0.8rem; color: #5F6368;">({alt_item.get('meaning', '')})</span></div>
+                            <div style="font-size: 0.8rem; color: #3C4043; line-height: 1.35;">{alt_item.get('pedagogical_hook', '')}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button(f"Study '{alt_v}' ➔", key=f"btn_alt_topic_{a_i}", use_container_width=True):
+                            start_next_curriculum_topic(alt_item["topic"], target_l, native_l)
+
+        # Quick Actions Bar
+        st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
+        col_shuf, col_rev, col_custom = st.columns(3)
+        with col_shuf:
+            if st.button("🎲 Shuffle recommended topics", use_container_width=True, help="Discover more unstudied irregular verbs and grammatical topics"):
+                st.session_state.next_topic_shuffle_seed = st.session_state.get("next_topic_shuffle_seed", 0) + 1
+                st.rerun()
         with col_rev:
-            if st.button("🔄 Review curriculum from start", use_container_width=True):
+            if st.button("🔄 Review this topic from start", use_container_width=True, help="Reset cards and review this roadmap again"):
                 st.session_state.active_tense_index = 0
                 st.session_state.active_card_step = 1
                 st.session_state.completed_card_steps = set()
                 st.session_state.completed_tenses = set()
+                st.session_state.needs_review_tenses = set()
                 st.session_state.current_pack = None
                 st.session_state.speech_eval_result = None
                 st.session_state.quiz_eval_result = None
+                st.session_state.micro_practice_result = None
                 auto_save_current_session()
                 st.rerun()
-        with col_new:
-            st.info("💡 You can also choose another topic or change language pairs anytime in the sidebar!")
+        with col_custom:
+            with st.popover("✍️ Pick a custom topic", use_container_width=True):
+                c_topic = st.text_input("Topic / verb:", placeholder="e.g. Verbo 'Venir' or Imperativo", key="custom_popover_topic")
+                if st.button("Launch Topic ➔", key="btn_launch_popover_topic", use_container_width=True, type="primary"):
+                    if c_topic.strip():
+                        start_next_curriculum_topic(c_topic.strip(), target_l, native_l)
+
     else:
         # Get active tense
         current_tense_name = active_tense_name
