@@ -77,7 +77,7 @@ def create_flashcard_agent() -> Agent:
     """Creates an ADK Agent instance for 5-stage flashcard generation."""
     return Agent(
         name="flashcard_generator",
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite",
         instruction=FLASHCARD_SYSTEM_PROMPT,
         output_key="flashcard_pack"
     )
@@ -115,7 +115,7 @@ Ensure phonetics have stressed syllables in **UPPERCASE** and bold (e.g. ha-**CI
 Return strict JSON.
 """
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=FLASHCARD_SYSTEM_PROMPT,

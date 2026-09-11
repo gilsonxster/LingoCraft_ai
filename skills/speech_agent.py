@@ -34,7 +34,7 @@ def create_speech_agent() -> Agent:
     """Creates an ADK Agent instance for speech evaluation."""
     return Agent(
         name="speech_validator",
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite",
         instruction=SPEECH_SYSTEM_PROMPT,
         output_key="speech_evaluation"
     )
@@ -67,7 +67,7 @@ Algorithmic Text Similarity Score: {score}%
 CRITICAL: Provide an empathetic, constructive speech validation report written entirely in {native_lang}. Return strict JSON.
 """
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=SPEECH_SYSTEM_PROMPT,

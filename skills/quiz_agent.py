@@ -37,7 +37,7 @@ def create_quiz_agent() -> Agent:
     """Creates an ADK Agent instance for quiz evaluation."""
     return Agent(
         name="quiz_evaluator",
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite",
         instruction=QUIZ_SYSTEM_PROMPT,
         output_key="quiz_feedback"
     )
@@ -89,7 +89,7 @@ Pre-identified pitfall: {distractor_reason}
 CRITICAL: Explain why this mistake is common and provide an immediate micro-practice drill, WRITTEN ENTIRELY IN {native_lang}. Return strict JSON.
 """
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=QUIZ_SYSTEM_PROMPT,

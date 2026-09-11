@@ -31,7 +31,7 @@ def create_curriculum_agent() -> Agent:
     """Creates an ADK Agent instance for curriculum planning."""
     return Agent(
         name="curriculum_initializer",
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite",
         instruction=CURRICULUM_SYSTEM_PROMPT,
         output_key="curriculum_plan"
     )
@@ -49,7 +49,7 @@ Native/Support Language: {native_lang}
 Generate the pedagogical curriculum roadmap. Write all descriptions in {native_lang}. Return strict JSON.
 """
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=CURRICULUM_SYSTEM_PROMPT,

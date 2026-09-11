@@ -22,7 +22,7 @@ def create_coach_agent() -> Agent:
     """Creates an ADK Agent instance for the chat coach."""
     return Agent(
         name="lingocraft_coach",
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite",
         instruction=COACH_SYSTEM_PROMPT,
         output_key="coach_response"
     )
@@ -63,7 +63,7 @@ Learner's Question: "{question}"
 Provide an empathetic, encouraging, and pedagogically clear response written in {native_lang}. Remember to bold key terms and put phonetic stress in **UPPERCASE**.
 """
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=COACH_SYSTEM_PROMPT
