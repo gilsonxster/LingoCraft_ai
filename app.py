@@ -258,8 +258,118 @@ def auto_save_current_session():
         session_manager.save_session(st.session_state.session_id, state_dict)
     sync_url_params()
 
-# Initialize Orchestrator
-orchestrator = LingoCraftOrchestrator(api_key=st.session_state.api_key)
+# Navigation Helper Callbacks
+def select_tense_and_study(idx: int):
+    st.session_state.active_tense_index = idx
+    st.session_state.active_card_step = 1
+    st.session_state.completed_card_steps = set()
+    st.session_state.current_pack = None
+    st.session_state.speech_eval_result = None
+    st.session_state.quiz_eval_result = None
+    st.session_state.main_tab = MAIN_TAB_LEARN
+    auto_save_current_session()
+
+def select_tense_and_coach(idx: int):
+    st.session_state.active_tense_index = idx
+    st.session_state.main_tab = MAIN_TAB_COACH
+    auto_save_current_session()
+
+def toggle_tense_mastery(idx: int):
+    if idx in st.session_state.completed_tenses:
+        st.session_state.completed_tenses.discard(idx)
+    else:
+        st.session_state.completed_tenses.add(idx)
+    auto_save_current_session()
+
+
+# Resolve Session ID from URL query parameters (?sid=...) or restore active session
+url_sid = st.query_params.get("sid", "").strip()
+
+if "session_id" not in st.session_state:
+    if url_sid:
+        loaded_state = session_manager.load_session(url_sid)
+        if loaded_state:
+            st.session_state.session_id = url_sid
+            st.session_state.current_curriculum = loaded_state["current_curriculum"]
+            st.session_state.active_tense_index = loaded_state["active_tense_index"]
+            st.session_state.active_card_step = loaded_state["active_card_step"]
+            st.session_state.completed_tenses = set(loaded_state["completed_tenses"])
+            st.session_state.completed_card_steps = set(loaded_state["completed_card_steps"])
+            st.session_state.chat_history = loaded_state["chat_history"]
+            st.session_state.session_loaded_msg = f"Resumed study session: {loaded_state['topic']}"
+        else:
+            st.session_state.session_id = url_sid
+    else:
+        st.session_state.session_id = session_manager.generate_session_id()
+
+if "session_id" in st.session_state:
+    st.query_params["sid"] = st.session_state.session_id
+
+# Initialize Session State Variables
+if "api_key" not in st.session_state:
+    st.session_state.api_key = os.getenv("GEMINI_API_KEY", "")
+
+if "current_curriculum" not in st.session_state:
+    st.session_state.current_curriculum = {
+        "topic": SPANISH_HACER_CURRICULUM.title,
+        "target_language": SPANISH_HACER_CURRICULUM.target_language,
+        "target_language_code": SPANISH_HACER_CURRICULUM.target_language_code,
+        "native_language": SPANISH_HACER_CURRICULUM.native_language,
+        "description": SPANISH_HACER_CURRICULUM.description,
+        "tenses_roadmap": SPANISH_HACER_CURRICULUM.tenses_roadmap,
+    }
+
+if "main_tab" not in st.session_state:
+    st.session_state.main_tab = MAIN_TAB_LEARN
+
+if "active_tense_index" not in st.session_state:
+    st.session_state.active_tense_index = 0
+
+if "active_card_step" not in st.session_state:
+    st.session_state.active_card_step = 1  # 1 to 5
+
+if "completed_card_steps" not in st.session_state:
+    st.session_state.completed_card_steps = set()
+
+if "completed_tenses" not in st.session_state:
+    st.session_state.completed_tenses = set()
+
+if "current_pack" not in st.session_state:
+    st.session_state.current_pack = None
+
+if "speech_eval_result" not in st.session_state:
+    st.session_state.speech_eval_result = None
+
+if "quiz_eval_result" not in st.session_state:
+    st.session_state.quiz_eval_result = None
+
+if "micro_practice_result" not in st.session_state:
+    st.session_state.micro_practice_result = None
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# Synchronize session ID with browser localStorage to preserve state across browser restarts
+components.html(f"""
+<script>
+  try {{
+    const pLoc = window.parent.location;
+    const sp = new URLSearchParams(pLoc.search);
+    const sid = sp.get('sid');
+    if (!sid) {{
+      const cached = window.localStorage.getItem('lingocraft_sid');
+      if (cached && cached.startsWith('lingo-')) {{
+        pLoc.search = '?sid=' + encodeURIComponent(cached);
+      }}
+    }} else {{
+      window.localStorage.setItem('lingocraft_sid', '{st.session_state.session_id}');
+    }}
+  }} catch(e) {{}}
+</script>
+""", height=0, width=0)
+
+# Initialize Orchestrator defensively
+orchestrator = LingoCraftOrchestrator(api_key=st.session_state.get("api_key", os.getenv("GEMINI_API_KEY", "")))
 
 # Sidebar
 with st.sidebar:
