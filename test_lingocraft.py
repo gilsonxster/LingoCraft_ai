@@ -210,19 +210,23 @@ def test_lingocraft_improvements():
     r1 = session_manager.get_rank_for_xp(0)
     assert r1["level"] == 1 and r1["name"] == "Novice Explorer"
     assert r1["progress_ratio"] == 0.0
+    assert "badge" in r1 and r1["badge"] == "🌱"
 
     r2 = session_manager.get_rank_for_xp(150)
     assert r2["level"] == 2 and r2["name"] == "Apprentice Speaker"
     assert r2["min_xp"] == 100 and r2["max_xp"] == 250
+    assert "badge" in r2 and r2["badge"] == "⚔️"
 
     r3 = session_manager.get_rank_for_xp(350)
     assert r3["level"] == 3 and r3["name"] == "Confident Conversationalist"
 
     r4 = session_manager.get_rank_for_xp(600)
     assert r4["level"] == 4 and r4["name"] == "Master Craftsman"
+    assert "badge" in r4 and r4["badge"] == "🏆"
 
     r_max = session_manager.get_rank_for_xp(1500)
     assert r_max["level"] == 4 and r_max["progress_ratio"] == 1.0
+    assert "badge" in r_max and r_max["badge"] == "🏆"
 
     # Test SQLite persistence of XP points
     test_sid_xp = "lingo-test-xp"
@@ -297,19 +301,54 @@ def test_lingocraft_improvements():
     # Test curated pack for 'tener'
     tener_pack_en = build_spanish_tener_pack(native_lang="English")
     tener_pack_pt = build_spanish_tener_pack(native_lang="Portuguese")
-    assert len(tener_pack_en) == 5
-    assert len(tener_pack_pt) == 5
+    assert len(tener_pack_en) >= 10
+    assert len(tener_pack_pt) >= 10
     assert "Presente de Indicativo" in tener_pack_en
+    assert "Condicional Simple" in tener_pack_en
+    assert "Condicional Simple" in tener_pack_pt
     assert "tengo" in tener_pack_en["Presente de Indicativo"].card1_concept.rule.lower()
+    assert "tendría" in tener_pack_pt["Condicional Simple"].card1_concept.conjugations[0].lower()
 
     # Test get_curriculum_or_fallback routing for 'tener'
     curric_tener = get_curriculum_or_fallback("Spanish: Irregular Verbs — Verbo 'Tener'", "Spanish", "English")
     assert "Tener" in curric_tener.title
-    assert len(curric_tener.tenses_roadmap) == 5
-    print("    Next topic recommendation engine, unstudied filtering, and curated pack verified.")
+    assert len(curric_tener.tenses_roadmap) == 10
+    assert curric_tener.tenses_roadmap[8] == "Condicional Simple"
+    print("    Next topic recommendation engine, unstudied filtering, and curated 10-stage pack verified.")
+
+    # 13. Test Card 1 Concept Conjugations (1st, 2nd, 3rd Person Proper Formatting)
+    print("[13] Testing Concept Card 1st, 2nd, 3rd Person Conjugation Tables...")
+    pack_pres_pt = orchestrator.load_tense_card_pack("Irregular Verbs: Verbo 'Hacer'", "Presente de Indicativo", 4, "Spanish", "Portuguese")
+    c1_pt = pack_pres_pt.card1_concept
+    assert c1_pt.conjugation_header is not None and len(c1_pt.conjugation_header) > 0
+    assert len(c1_pt.conjugations) == 6, f"Expected 6 persons in conjugation table, got {len(c1_pt.conjugations)}"
+    assert any("yo hago" in s and "(eu faço)" in s for s in c1_pt.conjugations)
+    assert any("tú haces" in s for s in c1_pt.conjugations)
+    assert any("él/ella/usted hace" in s for s in c1_pt.conjugations)
+    assert any("nosotros/as hacemos" in s for s in c1_pt.conjugations)
+    assert any("vosotros/as hacéis" in s for s in c1_pt.conjugations)
+    assert any("ellos/ellas/ustedes hacen" in s for s in c1_pt.conjugations)
+
+    pack_pret_pt = orchestrator.load_tense_card_pack("Irregular Verbs: Verbo 'Hacer'", "Pretérito Indefinido", 5, "Spanish", "Portuguese")
+    c1_pret = pack_pret_pt.card1_concept
+    assert len(c1_pret.conjugations) == 6
+    assert any("yo hice" in s and "(eu fiz)" in s for s in c1_pret.conjugations)
+    assert any("él/ella/usted hizo" in s and "(ele/ela/você fez)" in s for s in c1_pret.conjugations)
+
+    pack_tener_pt = orchestrator.load_tense_card_pack("Irregular Verbs: Verbo 'Tener'", "Presente de Indicativo", 4, "Spanish", "Portuguese")
+    assert len(pack_tener_pt.card1_concept.conjugations) == 6
+    assert any("yo tengo" in s and "(eu tenho)" in s for s in pack_tener_pt.card1_concept.conjugations)
+
+    pack_pres_en = orchestrator.load_tense_card_pack("Irregular Verbs: Verbo 'Hacer'", "Presente de Indicativo", 4, "Spanish", "English")
+    assert len(pack_pres_en.card1_concept.conjugations) == 6
+    assert any("yo hago" in s and "(I do / make)" in s for s in pack_pres_en.card1_concept.conjugations)
+    print(f"    PT Present Conjugations: {c1_pt.conjugation_header}")
+    for item in c1_pt.conjugations:
+        print(f"      {item}")
+    print("    1st, 2nd, and 3rd person conjugation tables verified in Portuguese and English.")
 
     print("==================================================")
-    print("ALL 12 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
+    print("ALL 13 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
     print("==================================================")
 
 

@@ -1,3 +1,4 @@
+from streamlit.errors import StreamlitWidgetAlreadyInstantiatedError
 """
 LingoCraft AI - Streamlit Application.
 Interactive, empathetic, tense-by-tense language learning coach with 5-stage flashcard system.
@@ -246,6 +247,14 @@ st.markdown("""
         box-shadow: 0 1px 2px rgba(60, 64, 67, 0.08);
         letter-spacing: 0.01rem;
     }
+    /* Disable tooltip popups in sidebar to prevent blocking button interactions */
+    [data-testid="stSidebar"] [data-testid="stTooltipContent"],
+    [data-testid="stSidebar"] [data-testid="stTooltipHoverTarget"] + div,
+    [data-testid="stSidebar"] div[role="tooltip"] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -324,6 +333,13 @@ def award_xp(amount: int, event_id: str, reason: str):
         log_ve_event("xp_awarded", "reward", {"amount": amount, "event_id": event_id, "total_xp": st.session_state.xp_points})
 
 # Navigation Helper Callbacks
+def safe_set_main_tab(tab_name: str):
+    """Safely updates main_tab, or queues it if widget is already instantiated."""
+    try:
+        st.session_state.main_tab = tab_name
+    except (StreamlitWidgetAlreadyInstantiatedError, Exception):
+        st.session_state["_pending_main_tab"] = tab_name
+
 def select_tense_and_study(idx: int):
     st.session_state.active_tense_index = idx
     st.session_state.active_card_step = 1
@@ -331,12 +347,12 @@ def select_tense_and_study(idx: int):
     st.session_state.current_pack = None
     st.session_state.speech_eval_result = None
     st.session_state.quiz_eval_result = None
-    st.session_state.main_tab = MAIN_TAB_LEARN
+    safe_set_main_tab(MAIN_TAB_LEARN)
     auto_save_current_session()
 
 def select_tense_and_coach(idx: int):
     st.session_state.active_tense_index = idx
-    st.session_state.main_tab = MAIN_TAB_COACH
+    safe_set_main_tab(MAIN_TAB_COACH)
     auto_save_current_session()
 
 def toggle_tense_mastery(idx: int):
@@ -393,7 +409,7 @@ def start_next_curriculum_topic(new_topic_title: str, target_lang: str, native_l
     st.session_state.speech_eval_result = None
     st.session_state.quiz_eval_result = None
     st.session_state.micro_practice_result = None
-    st.session_state.main_tab = MAIN_TAB_LEARN
+    safe_set_main_tab(MAIN_TAB_LEARN)
     auto_save_current_session()
     st.toast(f"🚀 Started Next Topic: {new_topic_title}!", icon="🎯")
     st.rerun()
@@ -487,11 +503,11 @@ def render_incontext_coach(current_tense_name: str, step_num: int, pack, target_
     Uses @st.fragment so questions are sent to the backend without refreshing the entire page.
     """
     step_ans_key = f"incontext_ans_{current_tense_name}_{step_num}"
-    has_answer = bool(st.session_state.get(step_ans_key))
-    with st.expander(f"💬 Ask Coach LingoCraft about {current_tense_name} (in-context)", expanded=has_answer):
-        st.markdown(f"<p style='font-size: 0.875rem; color: var(--gmat-sys-color-text-secondary); margin-bottom: 8px;'>Got a question about <strong>{current_tense_name}</strong>? Ask here and continue your study flow without switching tabs.</p>", unsafe_allow_html=True)
+    with st.popover(f"💬 Ask Coach about {current_tense_name}", use_container_width=False):
+        st.markdown(f"<div style='font-size: 0.875rem; color: #5F6368; margin-bottom: 8px;'>Got a question about <strong>{current_tense_name}</strong>? Ask here and continue your study flow without losing your card.</div>", unsafe_allow_html=True)
         prompts = getattr(pack, "suggested_coach_prompts", []) if pack else []
         _incontext_coach_fragment(current_tense_name, step_num, prompts, target_l, native_l)
+
 
 @st.fragment
 def _speech_practice_fragment(current_tense_name: str, pack, target_l: str, native_l: str):
@@ -588,39 +604,104 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     Isolated Streamlit fragment for flashcard study (stepper and card content).
     Interactions here execute in-place without triggering a full page rerun by default.
     """
-    step_names = [
-        "1. Concept & rule",
-        "2. Bilingual example",
-        "3. Pronunciation guide",
-        "4. Speech validation",
-        "5. Conjugation quiz"
+    step_labels = [
+        "1. Rule",
+        "2. Example",
+        "3. Pronounce",
+        "4. Speech",
+        "5. Quiz"
     ]
-    # Step 1: Interactive Stepper (allows jumping directly to any card)
+    # Step 1: Horizontal Progress Stepper
     step_cols = st.columns(5)
     for s_idx, col in enumerate(step_cols):
         with col:
             step_num = s_idx + 1
             is_active = (step_num == st.session_state.active_card_step)
             is_completed = (step_num in st.session_state.completed_card_steps)
-            icon = "🎯 " if is_active else ("✓ " if is_completed else "")
+            icon = "● " if is_active else ("✓ " if is_completed else "")
             btn_type = "primary" if is_active else "secondary"
-            if st.button(f"{icon}{step_names[s_idx]}", key=f"stepper_{current_tense_name}_{step_num}", use_container_width=True, type=btn_type):
+            if st.button(f"{icon}{step_labels[s_idx]}", key=f"stepper_{current_tense_name}_{step_num}", use_container_width=True, type=btn_type):
                 st.session_state.active_card_step = step_num
                 auto_save_current_session()
                 log_ve_event("stepper_card_jump", "click", {"step": step_num})
                 st.rerun(scope="fragment")
 
+    st.progress(st.session_state.active_card_step / 5.0)
+
     target_l = st.session_state.current_curriculum.get("target_language", "Target Language")
     native_l = st.session_state.current_curriculum.get("native_language", "Native Language")
+    is_infinitivo = "infinitivo" in current_tense_name.lower()
 
     # -------------------------------------------------------------
     # STAGE 1: CONCEPT & RULE
     # -------------------------------------------------------------
     if st.session_state.active_card_step == 1:
-        st.markdown(f"## {pack.card1_concept.title}")
+        col_c1_title, col_c1_coach = st.columns([3.2, 1.2])
+        with col_c1_title:
+            st.markdown(f"<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>{pack.card1_concept.title}</h3>", unsafe_allow_html=True)
+        with col_c1_coach:
+            render_incontext_coach(current_tense_name, 1, pack, target_l, native_l)
 
         st.markdown("#### 📌 Grammatical rule & structure")
         st.markdown(pack.card1_concept.rule)
+
+        # Full Person Conjugation Table / List (1st, 2nd, and 3rd person) OR Infinitive Structures
+        conjugations = getattr(pack.card1_concept, "conjugations", [])
+        if conjugations:
+            is_pt_card = "portugu" in native_l.lower()
+            if is_infinitivo:
+                section_label = "Estruturas essenciais com Infinitivo (Perífrases e Modais)" if is_pt_card else "Essential Infinitive Verbal Structures & Periphrases"
+                col1_label = "📌 Perífrases com Verbo Auxiliar" if is_pt_card else "📌 Modal & Auxiliary Periphrases"
+                col2_label = "🔗 Preposições + Infinitivo" if is_pt_card else "🔗 Prepositional Structures"
+                conj_header = getattr(pack.card1_concept, "conjugation_header", None) or (
+                    "O infinitivo é a forma base não conjugada. Usado diretamente após verbos auxiliares e preposições:" if is_pt_card
+                    else "The infinitive is the unconjugated base form. Used directly after modal verbs and prepositions:"
+                )
+            else:
+                section_label = "Conjugação completa do verbo (1ª, 2ª e 3ª pessoa)" if is_pt_card else "Full verb conjugation (1st, 2nd & 3rd person)"
+                col1_label = "👤 Singular (1ª, 2ª, 3ª pessoa)" if is_pt_card else "👤 Singular (1st, 2nd, 3rd person)"
+                col2_label = "👥 Plural (1ª, 2ª, 3ª pessoa)" if is_pt_card else "👥 Plural (1st, 2nd, 3rd person)"
+                conj_header = getattr(pack.card1_concept, "conjugation_header", None) or (
+                    "A conjugação é bastante irregular, mas muito comum:" if is_pt_card
+                    else "The conjugation features common irregular forms:"
+                )
+
+            st.markdown(f"#### 👥 {section_label}")
+            st.markdown(f"<div style='font-size: 0.95rem; font-weight: 500; color: var(--gmat-sys-color-text-secondary); margin-bottom: 10px;'>{conj_header}</div>", unsafe_allow_html=True)
+
+            rows_html = []
+            for item in conjugations:
+                m = re.match(r'^(.*?)\s*(\(.*?\))$', item.strip())
+                if m:
+                    target_part, native_part = m.group(1).strip(), m.group(2).strip()
+                    rows_html.append(
+                        f"<div style='display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 8px; padding: 8px 14px; margin: 4px 0; box-shadow: 0 1px 2px rgba(60,64,67,0.04);'>"
+                        f"<span style='font-family: monospace; font-size: 1.02rem; font-weight: 700; color: #174EA6;'>{html.escape(target_part)}</span>"
+                        f"<span style='font-size: 0.88rem; color: #5F6368; font-style: italic;'>{html.escape(native_part)}</span>"
+                        f"</div>"
+                    )
+                else:
+                    rows_html.append(
+                        f"<div style='background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 8px; padding: 8px 14px; margin: 4px 0; font-family: monospace; font-size: 1rem; color: #174EA6; font-weight: 600;'>"
+                        f"{html.escape(item)}"
+                        f"</div>"
+                    )
+
+            if len(rows_html) == 6:
+                col_sg, col_pl = st.columns(2)
+                with col_sg:
+                    st.markdown(f"<div style='font-size: 0.75rem; font-weight: 700; color: #5F6368; text-transform: uppercase; letter-spacing: 0.05rem; margin-bottom: 6px;'>{col1_label}</div>", unsafe_allow_html=True)
+                    for r in rows_html[:3]:
+                        st.markdown(r, unsafe_allow_html=True)
+                with col_pl:
+                    st.markdown(f"<div style='font-size: 0.75rem; font-weight: 700; color: #5F6368; text-transform: uppercase; letter-spacing: 0.05rem; margin-bottom: 6px;'>{col2_label}</div>", unsafe_allow_html=True)
+                    for r in rows_html[3:]:
+                        st.markdown(r, unsafe_allow_html=True)
+            else:
+                for r in rows_html:
+                    st.markdown(r, unsafe_allow_html=True)
+
+            st.markdown("<div style='margin-bottom: 14px;'></div>", unsafe_allow_html=True)
 
         st.markdown("#### 🌍 Real-world usage context")
         st.markdown(pack.card1_concept.usage_context)
@@ -629,12 +710,10 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
             trigger_pills = " ".join([f"<span style='display:inline-block; background-color:#F1F3F4; color:#202124; padding:3px 10px; border-radius:16px; margin:2px 4px; font-family:monospace; font-size:0.875rem; border:1px solid #DADCE0;'>{trig}</span>" for trig in pack.card1_concept.triggers])
             st.markdown(trigger_pills, unsafe_allow_html=True)
 
-        render_incontext_coach(current_tense_name, 1, pack, target_l, native_l)
-
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_space, col_next = st.columns([3, 1.4])
+        col_space, col_next = st.columns([2.5, 1.5])
         with col_next:
-            if st.button("Next: bilingual example ➔", key="next_c1", use_container_width=True, type="primary"):
+            if st.button("Next: Bilingual Example ➔", key="next_c1", use_container_width=True, type="primary"):
                 st.session_state.completed_card_steps.add(1)
                 st.session_state.active_card_step = 2
                 auto_save_current_session()
@@ -644,7 +723,11 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     # STAGE 2: BILINGUAL EXAMPLE
     # -------------------------------------------------------------
     elif st.session_state.active_card_step == 2:
-        st.markdown("## Real-World Comparative Phrase")
+        col_c2_title, col_c2_coach = st.columns([3.2, 1.2])
+        with col_c2_title:
+            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>Real-World Comparative Phrase</h3>", unsafe_allow_html=True)
+        with col_c2_coach:
+            render_incontext_coach(current_tense_name, 2, pack, target_l, native_l)
 
         st.markdown(f"#### 🎯 Target language ({target_l}):")
         st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#174EA6; background-color:#E8F0FE; padding:16px; border-radius:12px; border-left:5px solid #1A73E8;'>{pack.card2_example.target_sentence}</div>", unsafe_allow_html=True)
@@ -670,8 +753,6 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
         with st.expander("🔍 Grammatical Structure & Breakdown", expanded=True):
             st.markdown(pack.card2_example.breakdown)
 
-        render_incontext_coach(current_tense_name, 2, pack, target_l, native_l)
-
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
         col_prev, col_next = st.columns([1.2, 1.4])
         with col_prev:
@@ -691,7 +772,11 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     # STAGE 3: PRONUNCIATION GUIDE
     # -------------------------------------------------------------
     elif st.session_state.active_card_step == 3:
-        st.markdown("## Phonetic Breakdown & Native Audio")
+        col_c3_title, col_c3_coach = st.columns([3.2, 1.2])
+        with col_c3_title:
+            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>Phonetic Breakdown & Native Audio</h3>", unsafe_allow_html=True)
+        with col_c3_coach:
+            render_incontext_coach(current_tense_name, 3, pack, target_l, native_l)
 
         st.markdown(f"### Key verb / phrase: **{pack.card3_pronunciation.word}**")
 
@@ -716,8 +801,6 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
         with st.expander("🗣️ Articulation & Vocal Coaching Tips", expanded=False):
             st.markdown(pack.card3_pronunciation.phonetic_tips)
 
-        render_incontext_coach(current_tense_name, 3, pack, target_l, native_l)
-
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
         col_prev, col_next = st.columns([1.2, 1.4])
         with col_prev:
@@ -737,7 +820,11 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     # STAGE 4: SPEECH VALIDATION
     # -------------------------------------------------------------
     elif st.session_state.active_card_step == 4:
-        st.markdown("## Voice Practice & Speech Evaluation")
+        col_c4_title, col_c4_coach = st.columns([3.2, 1.2])
+        with col_c4_title:
+            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>Voice Practice & Speech Evaluation</h3>", unsafe_allow_html=True)
+        with col_c4_coach:
+            render_incontext_coach(current_tense_name, 4, pack, target_l, native_l)
 
         st.markdown("Speak this sentence aloud:")
         target_display = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', pack.card4_speech.target_phrase)
@@ -747,8 +834,6 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
         st.caption(f"Focus sounds: {pack.card4_speech.key_focus_sounds}")
 
         _speech_practice_fragment(current_tense_name, pack, target_l, native_l)
-
-        render_incontext_coach(current_tense_name, 4, pack, target_l, native_l)
 
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
         col_prev, col_next = st.columns([1.2, 1.4])
@@ -770,7 +855,11 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     # STAGE 5: CONJUGATION QUIZ (Shuffled Options & No Pre-selection)
     # -------------------------------------------------------------
     elif st.session_state.active_card_step == 5:
-        st.markdown("## Master Tense Conjugation Challenge")
+        col_c5_title, col_c5_coach = st.columns([3.2, 1.2])
+        with col_c5_title:
+            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>Master Tense Conjugation Challenge</h3>", unsafe_allow_html=True)
+        with col_c5_coach:
+            render_incontext_coach(current_tense_name, 5, pack, target_l, native_l)
 
         st.markdown("#### Fill in the blank with the correct form:")
         st.markdown(f"<div style='font-size:1.3rem; font-weight:500; color:#202124; background-color:#F8F9FA; padding:18px; border-radius:12px; border:1px solid #DADCE0;'>{pack.card5_quiz.sentence_prompt}</div>", unsafe_allow_html=True)
@@ -888,8 +977,6 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
                             auto_save_current_session()
                             st.rerun(scope="app")
 
-        render_incontext_coach(current_tense_name, 5, pack, target_l, native_l)
-
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
         col_prev, col_space = st.columns([1.2, 4])
         with col_prev:
@@ -937,7 +1024,7 @@ if "current_curriculum" not in st.session_state:
     }
 
 if "main_tab" not in st.session_state:
-    st.session_state.main_tab = MAIN_TAB_LEARN
+    safe_set_main_tab(MAIN_TAB_LEARN)
 
 if "active_tense_index" not in st.session_state:
     st.session_state.active_tense_index = 0
@@ -1042,7 +1129,7 @@ with st.sidebar:
                 st.session_state.pack_cache = {}
                 st.session_state.speech_eval_result = None
                 st.session_state.quiz_eval_result = None
-                st.session_state.main_tab = MAIN_TAB_LEARN
+                safe_set_main_tab(MAIN_TAB_LEARN)
                 auto_save_current_session()
                 st.rerun()
         with col_save_s:
@@ -1070,7 +1157,7 @@ with st.sidebar:
                     st.session_state.pack_cache = {}
                     st.session_state.speech_eval_result = None
                     st.session_state.quiz_eval_result = None
-                    st.session_state.main_tab = MAIN_TAB_LEARN
+                    safe_set_main_tab(MAIN_TAB_LEARN)
                     st.session_state.session_loaded_msg = f"Loaded session: {loaded['topic']}"
                     st.rerun()
                 else:
@@ -1106,14 +1193,21 @@ with st.sidebar:
                         st.session_state.pack_cache = {}
                         st.session_state.speech_eval_result = None
                         st.session_state.quiz_eval_result = None
-                        st.session_state.main_tab = MAIN_TAB_LEARN
+                        safe_set_main_tab(MAIN_TAB_LEARN)
                         st.session_state.session_loaded_msg = f"Resumed: {loaded['topic']}"
                         st.rerun()
 
     st.markdown("---")
     st.subheader("📚 Topic & Language Pair")
 
-    study_mode = st.radio("Select Curriculum Mode:", ["Curated Core Topics", "Custom Topic (AI Powered)"])
+    study_mode = st.segmented_control(
+        "Select Curriculum Mode:",
+        ["Curated Core Topics", "Custom Topic (AI Powered)"],
+        default="Curated Core Topics",
+        label_visibility="collapsed"
+    )
+    if not study_mode:
+        study_mode = "Curated Core Topics"
 
     if study_mode == "Curated Core Topics":
         curated_choices = [
@@ -1152,7 +1246,7 @@ with st.sidebar:
             st.session_state.needs_review_tenses = set()
             st.session_state.speech_eval_result = None
             st.session_state.quiz_eval_result = None
-            st.session_state.main_tab = MAIN_TAB_LEARN
+            safe_set_main_tab(MAIN_TAB_LEARN)
             auto_save_current_session()
             st.rerun()
 
@@ -1174,7 +1268,7 @@ with st.sidebar:
                 st.session_state.needs_review_tenses = set()
                 st.session_state.speech_eval_result = None
                 st.session_state.quiz_eval_result = None
-                st.session_state.main_tab = MAIN_TAB_LEARN
+                safe_set_main_tab(MAIN_TAB_LEARN)
                 auto_save_current_session()
                 st.success("Roadmap successfully initialized!")
                 st.rerun()
@@ -1220,8 +1314,7 @@ with st.sidebar:
             use_container_width=True,
             type=btn_t,
             on_click=select_tense_and_study,
-            args=(idx,),
-            help=f"Click to study Stage {idx+1}: {tense}"
+            args=(idx,)
         )
 
     if is_curriculum_completed:
@@ -1237,25 +1330,28 @@ with st.sidebar:
         st.session_state.current_pack = None
         st.session_state.speech_eval_result = None
         st.session_state.quiz_eval_result = None
-        st.session_state.main_tab = MAIN_TAB_LEARN
+        safe_set_main_tab(MAIN_TAB_LEARN)
         auto_save_current_session()
         st.rerun()
 
 
     # Observability & Visual Element (VE) Telemetry (Google Frontend Standard)
-    with st.expander("📊 Observability & Telemetry (VE)", expanded=False):
-        st.caption("Tracks user interaction events and performance telemetry following Google frontend standards.")
-        ve_logs = st.session_state.get("ve_logs", [])
-        if ve_logs:
-            for log in reversed(ve_logs[-6:]):
-                meta_str = f" | {log['metadata']}" if log['metadata'] else ""
-                st.markdown(f"<div class='telemetry-row'><code>{log['timestamp']}</code> [{log['action']}] <strong>{log['ve_id']}</strong>{meta_str}</div>", unsafe_allow_html=True)
-        else:
-            st.caption("No events logged yet. Interact with curriculum cards to generate telemetry.")
-        
-        if st.button("Clear telemetry logs", key="clear_telemetry_btn", use_container_width=True):
-            st.session_state.ve_logs = []
-            st.rerun()
+    # Gated behind ?debug=true or ?dev=true so language learners enjoy an uncluttered interface
+    is_debug_mode = (st.query_params.get("debug") == "true" or st.query_params.get("dev") == "true")
+    if is_debug_mode:
+        with st.expander("🛠️ Developer Telemetry (VE)", expanded=False):
+            st.caption("Tracks user interaction events and performance telemetry following Google frontend standards.")
+            ve_logs = st.session_state.get("ve_logs", [])
+            if ve_logs:
+                for log in reversed(ve_logs[-6:]):
+                    meta_str = f" | {log['metadata']}" if log['metadata'] else ""
+                    st.markdown(f"<div class='telemetry-row'><code>{log['timestamp']}</code> [{log['action']}] <strong>{log['ve_id']}</strong>{meta_str}</div>", unsafe_allow_html=True)
+            else:
+                st.caption("No events logged yet. Interact with curriculum cards to generate telemetry.")
+            
+            if st.button("Clear telemetry logs", key="clear_telemetry_btn", use_container_width=True):
+                st.session_state.ve_logs = []
+                st.rerun()
 
 # Display session loaded notification toast if set
 if st.session_state.get("session_loaded_msg"):
@@ -1264,8 +1360,27 @@ if st.session_state.get("session_loaded_msg"):
 
 # Main Area Layout
 rank_info = session_manager.get_rank_for_xp(st.session_state.get("xp_points", 0))
-st.markdown('<h1 class="main-title">🎓 LingoCraft AI</h1>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-title">Interactive foreign language coach with 5-stage active recall & speech practice. <span class="xp-badge">⚡ <strong>{st.session_state.get("xp_points", 0)} XP</strong> · {rank_info["label"]}</span></p>', unsafe_allow_html=True)
+col_hdr_brand, col_hdr_xp = st.columns([2.6, 1.4])
+with col_hdr_brand:
+    st.markdown('<h1 class="main-title" style="margin-bottom: 2px;">🎓 LingoCraft AI</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title" style="margin-bottom: 12px; font-size: 0.95rem;">Interactive foreign language coach with 5-stage active recall & speech practice</p>', unsafe_allow_html=True)
+with col_hdr_xp:
+    xp_val = st.session_state.get("xp_points", 0)
+    st.markdown(f"""
+    <div style="background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 14px; padding: 8px 14px; box-shadow: 0 1px 3px rgba(60,64,67,0.06); display: flex; flex-direction: column; align-items: flex-end; justify-content: center; margin-top: 4px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: 700; color: #174EA6; font-size: 1rem;">⚡ {xp_val} XP</span>
+            <span class="badge-active" style="font-size: 0.78rem;">{rank_info['icon']} Lvl {rank_info['level']}: {rank_info['name']}</span>
+        </div>
+        <div style="font-size: 0.72rem; color: #5F6368; margin-top: 4px;">
+            {rank_info['current_xp']} / {rank_info['next_level_xp']} XP to next level
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.progress(rank_info['progress_ratio'])
+
+if "_pending_main_tab" in st.session_state:
+    st.session_state.main_tab = st.session_state.pop("_pending_main_tab")
 
 # Main Navigation Tabs
 tab_learn, tab_coach, tab_curriculum = st.tabs(
@@ -1371,8 +1486,8 @@ with tab_curriculum:
         </div>
         """, unsafe_allow_html=True)
 
-        col_act1, col_act2, col_act3, col_act4 = st.columns([2.2, 1.8, 1.5, 1.5])
-        with col_act1:
+        col_study, col_opts = st.columns([3.6, 1.2])
+        with col_study:
             btn_label = f"📖 {'Continue' if is_act else ('Review' if (is_comp or is_rev) else 'Start')} study ({t}) ➔"
             btn_t = "primary" if is_act else "secondary"
             st.button(
@@ -1383,32 +1498,31 @@ with tab_curriculum:
                 on_click=select_tense_and_study,
                 args=(i, 1)
             )
-        with col_act2:
-            st.button(
-                f"💬 Ask coach about {t}",
-                key=f"curr_card_coach_{i}",
-                use_container_width=True,
-                on_click=select_tense_and_coach,
-                args=(i,)
-            )
-        with col_act3:
-            toggle_text = "↩️ Mark active" if is_comp else "🏆 Mark mastered"
-            st.button(
-                toggle_text,
-                key=f"curr_card_toggle_{i}",
-                use_container_width=True,
-                on_click=toggle_tense_mastery,
-                args=(i,)
-            )
-        with col_act4:
-            rev_text = "✓ Clear review" if is_rev else "🔄 Flag review"
-            st.button(
-                rev_text,
-                key=f"curr_card_rev_{i}",
-                use_container_width=True,
-                on_click=toggle_tense_review,
-                args=(i,)
-            )
+        with col_opts:
+            with st.popover("⚙️ Options", use_container_width=True):
+                st.button(
+                    f"💬 Ask coach about {t}",
+                    key=f"curr_card_coach_{i}",
+                    use_container_width=True,
+                    on_click=select_tense_and_coach,
+                    args=(i,)
+                )
+                toggle_text = "↩️ Mark active" if is_comp else "🏆 Mark mastered"
+                st.button(
+                    toggle_text,
+                    key=f"curr_card_toggle_{i}",
+                    use_container_width=True,
+                    on_click=toggle_tense_mastery,
+                    args=(i,)
+                )
+                rev_text = "✓ Clear review" if is_rev else "🔄 Flag review"
+                st.button(
+                    rev_text,
+                    key=f"curr_card_rev_{i}",
+                    use_container_width=True,
+                    on_click=toggle_tense_review,
+                    args=(i,)
+                )
         st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
 
@@ -1516,7 +1630,7 @@ with tab_learn:
                 <div style="text-align: right; min-width: 140px; background: rgba(255,255,255,0.18); padding: 12px 18px; border-radius: 12px; backdrop-filter: blur(4px);">
                     <div style="font-size: 0.75rem; text-transform: uppercase; opacity: 0.9; letter-spacing: 0.03rem;">Total Experience</div>
                     <div style="font-size: 1.6rem; font-weight: 800; color: #FFE082;">⚡ {st.session_state.get('xp_points', 0)} XP</div>
-                    <div style="font-size: 0.8rem; font-weight: 600;">{curr_rank['badge']} {curr_rank['label']}</div>
+                    <div style="font-size: 0.8rem; font-weight: 600;">{curr_rank.get('label', '')}</div>
                 </div>
             </div>
         </div>
@@ -1625,9 +1739,30 @@ with tab_learn:
         native_lang = st.session_state.current_curriculum.get("native_language", "English")
         pack_key = f"{pack_topic}::{current_tense_name}::{native_lang}"
 
-        if pack_key in st.session_state.pack_cache:
-            st.session_state.current_pack = st.session_state.pack_cache[pack_key]
-        elif st.session_state.current_pack is None or st.session_state.current_pack.tense_name != current_tense_name:
+        def _is_invalid_pack(p, expected_tense):
+            if not p or not getattr(p, "card1_concept", None):
+                return True
+            if not getattr(p.card1_concept, "conjugations", None):
+                return True
+            c1_title = (getattr(p.card1_concept, "title", "") or "").lower()
+            exp_tense = (expected_tense or "").lower()
+            if "infinitivo" not in exp_tense and "infinitivo" in c1_title:
+                return True
+            return False
+
+        cached_pack = st.session_state.pack_cache.get(pack_key)
+        if cached_pack and _is_invalid_pack(cached_pack, current_tense_name):
+            cached_pack = None
+            if pack_key in st.session_state.pack_cache:
+                del st.session_state.pack_cache[pack_key]
+
+        if cached_pack:
+            st.session_state.current_pack = cached_pack
+        elif (
+            st.session_state.current_pack is None
+            or st.session_state.current_pack.tense_name != current_tense_name
+            or _is_invalid_pack(st.session_state.current_pack, current_tense_name)
+        ):
             with st.spinner(f"Generating 5-Stage Flashcard Pack for **{current_tense_name}**..."):
                 pack = orchestrator.load_tense_card_pack(
                     topic=pack_topic,
@@ -1642,15 +1777,19 @@ with tab_learn:
         pack = st.session_state.current_pack
 
 
-        # Topic indicator & Stage Header
+        # Consolidated Stage Header & Status Bar
         topic_title = st.session_state.current_curriculum.get("topic", "Curriculum")
-        st.caption(f"🗺️ Curriculum: **{topic_title}**")
-
-        col_hdr_title, col_hdr_skip = st.columns([3, 1.2])
+        col_hdr_title, col_hdr_skip = st.columns([3.2, 1.3])
         with col_hdr_title:
-            st.markdown(f"### 🎯 Stage {st.session_state.active_tense_index + 1} of {len(roadmap)}: **{current_tense_name}**")
+            st.markdown(f"""
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 2px;">
+                <span class="badge-active" style="font-size: 0.78rem; font-weight: 700;">Stage {st.session_state.active_tense_index + 1} of {len(roadmap)}</span>
+                <span style="color: #5F6368; font-size: 0.85rem;">{topic_title}</span>
+            </div>
+            <h2 style="margin: 0 0 8px 0; color: #202124; font-size: 1.55rem; font-weight: 700;">{current_tense_name}</h2>
+            """, unsafe_allow_html=True)
         with col_hdr_skip:
-            if st.button("🏆 Mark tense as mastered ➔", help="Jump to the next tense if you already know this form", use_container_width=True):
+            if st.button("🏆 Mark mastered ➔", help="Jump to the next stage if you already know this form", use_container_width=True):
                 award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
                 st.session_state.completed_tenses.add(st.session_state.active_tense_index)
                 st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
