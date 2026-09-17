@@ -74,11 +74,113 @@ st.markdown("""
         --space-8: 32px;
     }
 
-        /* Hide default Streamlit header and Deploy watermark */
-    .stAppHeader, .stDeployButton, header[data-testid="stHeader"] {
+    /* Hide default Streamlit Deploy button and deploy watermarks */
+    .stDeployButton, 
+    [data-testid="stAppDeployButton"],
+    button[title="Deploy this app"] {
         display: none !important;
         visibility: hidden !important;
+        pointer-events: none !important;
         height: 0 !important;
+        width: 0 !important;
+    }
+
+    /* Transparent, non-blocking header so sidebar expand toggle is always accessible */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        pointer-events: none !important;
+        z-index: 99999 !important;
+        height: 2.85rem !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    header[data-testid="stHeader"] [data-testid="stToolbar"] {
+        pointer-events: none !important;
+        background: transparent !important;
+    }
+
+    /* Prominent Sidebar Expand Button when sidebar is collapsed */
+    [data-testid="stExpandSidebarButton"] {
+        pointer-events: auto !important;
+        visibility: visible !important;
+        display: inline-flex !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 14px !important;
+        z-index: 999999 !important;
+    }
+
+    [data-testid="stExpandSidebarButton"] button {
+        background-color: #FFFFFF !important;
+        border: 1px solid #DADCE0 !important;
+        border-radius: 8px !important;
+        color: #1B2E5D !important;
+        box-shadow: 0 1px 3px rgba(60, 64, 67, 0.12) !important;
+        transition: all 0.2s ease !important;
+        padding: 5px 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        cursor: pointer !important;
+    }
+
+    [data-testid="stExpandSidebarButton"] button::after {
+        content: "Open Roadmap";
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1B2E5D;
+        letter-spacing: -0.01rem;
+    }
+
+    [data-testid="stExpandSidebarButton"] button:hover {
+        background-color: #E8F0FE !important;
+        border-color: #1A73E8 !important;
+        color: #174EA6 !important;
+        box-shadow: 0 2px 6px rgba(26, 115, 232, 0.25) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    [data-testid="stExpandSidebarButton"] button:hover::after {
+        color: #174EA6 !important;
+    }
+
+    /* Style the Collapse Button inside the Sidebar */
+    [data-testid="stSidebarCollapseButton"] {
+        pointer-events: auto !important;
+        visibility: visible !important;
+    }
+
+    [data-testid="stSidebarCollapseButton"] button {
+        border-radius: 6px !important;
+        transition: background-color 0.15s ease !important;
+    }
+
+    [data-testid="stSidebarCollapseButton"] button:hover {
+        background-color: #E4EBF7 !important;
+    }
+
+    /* Brand sidebar toggle button in main navigation header */
+    .brand-sidebar-toggle {
+        background: #F0F5FE;
+        border: 1px solid #C2E7FF;
+        border-radius: 6px;
+        color: #174EA6;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        margin-right: 2px;
+        transition: all 0.15s ease;
+    }
+
+    .brand-sidebar-toggle:hover {
+        background: #E8F0FE;
+        border-color: #1A73E8;
+        transform: scale(1.05);
     }
 
     /* Style top main navigation segmented control */
@@ -1531,7 +1633,18 @@ flag_emoji = "🇪🇸" if "span" in target_l.lower() else ("🇧🇷" if "portu
 col_hdr_brand, col_hdr_center, col_hdr_xp = st.columns([1.6, 2.2, 1.8], vertical_alignment="center")
 
 with col_hdr_brand:
-    st.markdown('<div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 1.7rem;">🎓</span> <span style="font-size: 1.35rem; font-weight: 700; color: #174EA6; letter-spacing: -0.02rem;">LingoCraft</span></div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <button onclick="document.querySelector('[data-testid=\\'stExpandSidebarButton\\'] button')?.click() || document.querySelector('[data-testid=\\'stSidebarCollapseButton\\'] button')?.click()" 
+                class="brand-sidebar-toggle" 
+                title="Toggle Sidebar Roadmap"
+                aria-label="Toggle Sidebar Roadmap">
+            <span style="font-size: 1.25rem; line-height: 1;">☰</span>
+        </button>
+        <span style="font-size: 1.7rem;">🎓</span> 
+        <span style="font-size: 1.35rem; font-weight: 700; color: #174EA6; letter-spacing: -0.02rem;">LingoCraft</span>
+    </div>
+    """, unsafe_allow_html=True)
 
 with col_hdr_center:
     st.markdown(f"""
