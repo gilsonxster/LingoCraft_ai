@@ -77,14 +77,19 @@ st.markdown("""
     /* Hide default Streamlit Deploy button, MainMenu, footer, and deploy watermarks */
     .stDeployButton, 
     [data-testid="stAppDeployButton"],
+    [data-testid="stDeployButton"],
+    header [data-testid="stToolbar"],
+    header [data-testid="stToolbar"] *,
     button[title="Deploy this app"],
     #MainMenu,
+    [data-testid="stMainMenu"],
     footer {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
         height: 0 !important;
         width: 0 !important;
+        opacity: 0 !important;
     }
 
     /* Transparent, non-blocking header so sidebar expand toggle is always accessible */
@@ -890,49 +895,39 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
                     else "The conjugation features common irregular forms:"
                 )
 
-            st.markdown(f"#### 👥 {section_label}")
-            st.markdown(f"<div style='font-size: 0.95rem; font-weight: 500; color: var(--gmat-sys-color-text-secondary); margin-bottom: 10px;'>{conj_header}</div>", unsafe_allow_html=True)
+            st.markdown(f"#### 👥 {section_label}\n\n*{conj_header}*\n")
 
-            rows_html = []
-            for item in conjugations:
-                m = re.match(r'^(.*?)\s*(\(.*?\))$', item.strip())
+            def _fmt_item_md(item_str: str) -> str:
+                m = re.match(r'^(.*?)\s*(\(.*?\))$', item_str.strip())
                 if m:
-                    target_part, native_part = m.group(1).strip(), m.group(2).strip()
-                    rows_html.append(
-                        f"<div style='display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 8px; padding: 8px 14px; margin: 4px 0; box-shadow: 0 1px 2px rgba(60,64,67,0.04);'>"
-                        f"<span style='font-family: monospace; font-size: 1.02rem; font-weight: 700; color: #174EA6;'>{html.escape(target_part)}</span>"
-                        f"<span style='font-size: 0.88rem; color: #5F6368; font-style: italic;'>{html.escape(native_part)}</span>"
-                        f"</div>"
-                    )
-                else:
-                    rows_html.append(
-                        f"<div style='background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 8px; padding: 8px 14px; margin: 4px 0; font-family: monospace; font-size: 1rem; color: #174EA6; font-weight: 600;'>"
-                        f"{html.escape(item)}"
-                        f"</div>"
-                    )
+                    t_part, n_part = m.group(1).strip(), m.group(2).strip()
+                    return f"* **{t_part}** — *{n_part}*"
+                return f"* **{item_str.strip()}**"
 
-            if len(rows_html) == 6:
-                col_sg, col_pl = st.columns(2)
-                with col_sg:
-                    st.markdown(f"<div style='font-size: 0.75rem; font-weight: 700; color: #5F6368; text-transform: uppercase; letter-spacing: 0.05rem; margin-bottom: 6px;'>{col1_label}</div>", unsafe_allow_html=True)
-                    for r in rows_html[:3]:
-                        st.markdown(r, unsafe_allow_html=True)
-                with col_pl:
-                    st.markdown(f"<div style='font-size: 0.75rem; font-weight: 700; color: #5F6368; text-transform: uppercase; letter-spacing: 0.05rem; margin-bottom: 6px;'>{col2_label}</div>", unsafe_allow_html=True)
-                    for r in rows_html[3:]:
-                        st.markdown(r, unsafe_allow_html=True)
+            if len(conjugations) == 6:
+                col_c1_left, col_c1_right = st.columns(2)
+                with col_c1_left:
+                    lines_left = [f"##### {col1_label}\n"]
+                    for it in conjugations[:3]:
+                        lines_left.append(_fmt_item_md(it))
+                    st.markdown("\n".join(lines_left) + "\n\n")
+                with col_c1_right:
+                    lines_right = [f"##### {col2_label}\n"]
+                    for it in conjugations[3:]:
+                        lines_right.append(_fmt_item_md(it))
+                    st.markdown("\n".join(lines_right) + "\n\n")
             else:
-                for r in rows_html:
-                    st.markdown(r, unsafe_allow_html=True)
-
-            st.markdown("<div style='margin-bottom: 14px;'></div>", unsafe_allow_html=True)
+                lines_all = []
+                for it in conjugations:
+                    lines_all.append(_fmt_item_md(it))
+                st.markdown("\n".join(lines_all) + "\n\n")
 
         st.markdown("#### 🌍 Real-world usage context")
         st.markdown(pack.card1_concept.usage_context)
 
         with st.expander("🔑 Linguistic Triggers & Keywords", expanded=True):
-            trigger_pills = " ".join([f"<span style='display:inline-block; background-color:#F1F3F4; color:#202124; padding:3px 10px; border-radius:16px; margin:2px 4px; font-family:monospace; font-size:0.875rem; border:1px solid #DADCE0;'>{trig}</span>" for trig in pack.card1_concept.triggers])
-            st.markdown(trigger_pills, unsafe_allow_html=True)
+            pills_md = "  &nbsp; ".join([f"`{trig}`" for trig in pack.card1_concept.triggers])
+            st.markdown(f"\n{pills_md}\n\n")
 
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
         col_space, col_next = st.columns([2.5, 1.5])
@@ -1549,7 +1544,13 @@ with st.sidebar:
         other_recents = [r for r in recents if r["session_id"] != st.session_state.session_id]
         if other_recents:
             st.markdown("##### 🕒 Recent Study Sessions:")
+            seen_sidebar_topics = set()
             for r in other_recents:
+                t_key = session_manager.normalize_topic_key(r["topic"])
+                if t_key in seen_sidebar_topics:
+                    continue
+                seen_sidebar_topics.add(t_key)
+
                 t_str = format_relative_timestamp(r["updated_at"])
                 rev_n = r.get("needs_review_count", 0)
                 rev_suffix = f" | 🔄 {rev_n}" if rev_n > 0 else ""
@@ -1562,9 +1563,9 @@ with st.sidebar:
                     display_topic = raw_topic.split(":")[-1].strip()
                 else:
                     display_topic = raw_topic[:18]
-                c_lbl = f"{display_topic} (🏆 {r['completed_count']}/{r['total_tenses']}{xp_suffix})"
-                st.caption(f"📅 *{t_str}*")
-                if st.button(f"▶️ {c_lbl}", key=f"rec_btn_{r['session_id']}", help=f"Code: {r['session_id']} | Updated: {t_str}", use_container_width=True):
+                display_topic = display_topic.strip(' "\'“”‘’')
+                c_lbl = f"{display_topic} ({r['completed_count']}/{r['total_tenses']})"
+                if st.button(f"▶️ {c_lbl}", key=f"rec_btn_{r['session_id']}", help=f"Session: {r['session_id']} | Updated: {t_str}{xp_suffix}{rev_suffix}", use_container_width=True):
                     loaded = session_manager.load_session(r["session_id"])
                     if loaded:
                         st.session_state.session_id = r["session_id"]

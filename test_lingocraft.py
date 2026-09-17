@@ -347,16 +347,21 @@ def test_lingocraft_improvements():
         print(f"      {item}")
     print("    1st, 2nd, and 3rd person conjugation tables verified in Portuguese and English.")
 
-    # 14. Test Recent Sessions Deduplication by Unique Topic
-    print("[14] Testing Recent Sessions Deduplication by Topic...")
+    # 14. Test Recent Sessions Deduplication by Unique Topic & Key Normalization
+    print("[14] Testing Recent Sessions Deduplication by Topic & Normalization...")
+    assert session_manager.normalize_topic_key("Spanish: Irregular Verbs — Verbo 'Hacer'") == "hacer"
+    assert session_manager.normalize_topic_key('Spanish: Irregular Verbs — Verbo "Hacer"') == "hacer"
+    assert session_manager.normalize_topic_key("Irregular Verbs: Verbo 'Tener'") == "tener"
+    assert session_manager.normalize_topic_key("Verbo Hacer") == "hacer"
+
     s1_dedup = "lingo-test-dedup-1"
     s2_dedup = "lingo-test-dedup-2"
     t_state1 = {
-        "current_curriculum": {"topic": "Deduplication Test Topic", "target_language": "Spanish", "native_language": "English", "tenses_roadmap": ["Infinitivo"]},
+        "current_curriculum": {"topic": "Spanish: Irregular Verbs — Verbo 'Hacer'", "target_language": "Spanish", "native_language": "English", "tenses_roadmap": ["Infinitivo"]},
         "active_tense_index": 0, "active_card_step": 1, "completed_tenses": [], "needs_review_tenses": [], "completed_card_steps": [], "chat_history": [], "xp_points": 10
     }
     t_state2 = {
-        "current_curriculum": {"topic": "Deduplication Test Topic", "target_language": "Spanish", "native_language": "English", "tenses_roadmap": ["Infinitivo"]},
+        "current_curriculum": {"topic": 'Spanish: Verbo "Hacer"', "target_language": "Spanish", "native_language": "English", "tenses_roadmap": ["Infinitivo"]},
         "active_tense_index": 0, "active_card_step": 2, "completed_tenses": [0], "needs_review_tenses": [], "completed_card_steps": [1], "chat_history": [], "xp_points": 50
     }
     session_manager.save_session(s1_dedup, t_state1)
@@ -364,14 +369,14 @@ def test_lingocraft_improvements():
     session_manager.save_session(s2_dedup, t_state2)
 
     recents_dedup = session_manager.list_recent_sessions(limit=5, dedup_by_topic=True)
-    matched_dedup = [r for r in recents_dedup if r["topic"] == "Deduplication Test Topic"]
-    assert len(matched_dedup) == 1, f"Expected 1 deduplicated topic, got {len(matched_dedup)}"
+    matched_dedup = [r for r in recents_dedup if session_manager.normalize_topic_key(r["topic"]) == "hacer"]
+    assert len(matched_dedup) == 1, f"Expected 1 deduplicated 'hacer' topic, got {len(matched_dedup)}"
     assert matched_dedup[0]["session_id"] == s2_dedup
     assert matched_dedup[0]["xp_points"] == 50
 
     session_manager.delete_session(s1_dedup)
     session_manager.delete_session(s2_dedup)
-    print("    Recent sessions deduplication by unique topic verified.")
+    print("    Recent sessions deduplication and key normalization verified.")
 
     # 15. Test Google Cloud Console Roadmap Navigation Icons & State Mapping
     print("[15] Testing Google Cloud Console Roadmap Navigation Icons & State Mapping...")

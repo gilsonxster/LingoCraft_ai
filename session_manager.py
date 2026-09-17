@@ -6,6 +6,7 @@ to allow students to pause their studies and seamlessly resume later.
 
 import json
 import os
+import re
 import sqlite3
 import time
 import uuid
@@ -13,6 +14,26 @@ from typing import Any, Dict, List, Optional
 
 DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 DB_PATH = os.path.join(DB_DIR, "lingocraft_sessions.db")
+
+
+def normalize_topic_key(topic: str) -> str:
+    """
+    Normalizes a topic string to a canonical key for deduplication.
+    Strips language prefixes, verb category prefixes, quotes, and punctuation.
+    E.g.:
+      "Spanish: Irregular Verbs — Verbo 'Hacer'" -> "hacer"
+      'Spanish: Irregular Verbs — Verbo "Hacer"' -> "hacer"
+      "Irregular Verbs: Verbo 'Tener'" -> "tener"
+    """
+    if not topic:
+        return ""
+    t = topic.strip().lower()
+    t = re.sub(r'["\'“”‘’`]', '', t)
+    t = re.sub(r'^(spanish|portuguese|english|espanhol|português|inglês)\s*:\s*', '', t)
+    t = re.sub(r'^(irregular\s+verbs?|verbos\s+irregulares?)\s*([—:–-]\s*)?', '', t)
+    t = re.sub(r'^verbo\s+', '', t)
+    t = t.strip(' —:–-')
+    return t or topic.strip().lower()
 
 
 def init_db(db_path: str = DB_PATH) -> None:
@@ -249,7 +270,7 @@ def list_recent_sessions(limit: int = 5, dedup_by_topic: bool = True, db_path: s
             for r in rows:
                 topic = r[1]
                 if dedup_by_topic:
-                    clean_key = topic.strip().lower()
+                    clean_key = normalize_topic_key(topic)
                     if clean_key in seen_topics:
                         continue
                     seen_topics.add(clean_key)
