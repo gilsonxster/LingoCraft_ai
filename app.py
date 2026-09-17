@@ -212,29 +212,6 @@ st.markdown("""
         color: #1B2E5D !important;
     }
 
-    /* Brand sidebar toggle button in main navigation header */
-    .brand-sidebar-toggle {
-        background: #F0F5FE;
-        border: 1px solid #C2E7FF;
-        border-radius: 6px;
-        color: #174EA6;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        margin-right: 2px;
-        transition: all 0.15s ease;
-    }
-
-    .brand-sidebar-toggle:hover {
-        background: #E8F0FE;
-        border-color: #1A73E8;
-        transform: scale(1.05);
-    }
-
     /* Style top main navigation segmented control */
     div[data-testid="stSegmentedControl"] {
         margin: 12px 0 16px 0;
@@ -1360,36 +1337,6 @@ components.html(f"""
     }}
   }} catch(e) {{}}
 
-  try {{
-    const pDoc = window.parent.document;
-    if (pDoc && !pDoc._lingocraft_toggle_handler_installed) {{
-      pDoc._lingocraft_toggle_handler_installed = true;
-      pDoc.addEventListener('click', function(e) {{
-        const target = e.target;
-        const btn = target.closest ? target.closest('.brand-sidebar-toggle') : null;
-        if (btn) {{
-          e.preventDefault();
-          e.stopPropagation();
-          
-          // Check for expand button (rendered in header when sidebar is collapsed)
-          const expandBtn = pDoc.querySelector('[data-testid="stExpandSidebarButton"] button') || pDoc.querySelector('[data-testid="stExpandSidebarButton"]');
-          // Check for collapse button (rendered in sidebar header when sidebar is open)
-          const collapseBtn = pDoc.querySelector('[data-testid="stSidebarCollapseButton"] button') || pDoc.querySelector('[data-testid="stSidebarCollapseButton"]');
-          
-          // Determine if sidebar is currently collapsed: expandBtn is visible in the viewport
-          const isCollapsed = expandBtn && (expandBtn.offsetWidth > 0 || expandBtn.offsetHeight > 0 || window.getComputedStyle(expandBtn).display !== 'none');
-          
-          if (isCollapsed) {{
-            expandBtn.click();
-          }} else if (collapseBtn) {{
-            collapseBtn.click();
-          }} else if (expandBtn) {{
-            expandBtn.click();
-          }}
-        }}
-      }}, true);
-    }}
-  }} catch(e) {{}}
 </script>
 """, height=0, width=0)
 
@@ -1398,21 +1345,8 @@ orchestrator = LingoCraftOrchestrator(api_key=st.session_state.get("api_key", os
 
 # Sidebar
 with st.sidebar:
-    # 1. Top Branding & Active Topic Anchor with Close Button
-    st.markdown("""
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 1.6rem;">🎓</span>
-            <span style="font-size: 1.35rem; font-weight: 700; color: #174EA6; letter-spacing: -0.02rem;">LingoCraft</span>
-        </div>
-        <button class="brand-sidebar-toggle" 
-                title="Collapse Sidebar Roadmap" 
-                aria-label="Collapse Sidebar Roadmap" 
-                style="background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; font-weight: 600; color: #1B2E5D; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(60,64,67,0.06);">
-            ◀ Close
-        </button>
-    </div>
-    """, unsafe_allow_html=True)
+    # 1. Top Branding & Active Topic Anchor
+    st.markdown('<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;"><span style="font-size:1.6rem;">🎓</span><span style="font-size:1.35rem; font-weight:700; color:#174EA6; letter-spacing:-0.02rem;">LingoCraft</span></div>', unsafe_allow_html=True)
 
     cur_topic = st.session_state.current_curriculum.get("topic", "Spanish: Verbo 'Hacer'")
     target_l = st.session_state.current_curriculum.get("target_language", "Spanish")
@@ -1740,12 +1674,6 @@ col_hdr_brand, col_hdr_center, col_hdr_xp = st.columns([1.6, 2.2, 1.8], vertical
 with col_hdr_brand:
     st.markdown("""
     <div style="display: flex; align-items: center; gap: 8px;">
-        <button class="brand-sidebar-toggle" 
-                title="Toggle Sidebar Roadmap"
-                aria-label="Toggle Sidebar Roadmap"
-                style="width: 32px; height: 32px; padding: 0;">
-            <span style="font-size: 1.25rem; line-height: 1;">☰</span>
-        </button>
         <span style="font-size: 1.7rem;">🎓</span> 
         <span style="font-size: 1.35rem; font-weight: 700; color: #174EA6; letter-spacing: -0.02rem;">LingoCraft</span>
     </div>
