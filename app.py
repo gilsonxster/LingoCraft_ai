@@ -1,8 +1,8 @@
-from streamlit.errors import StreamlitWidgetAlreadyInstantiatedError
 """
-LingoCraft AI - Streamlit Application.
+LingoCraft AI Application.
 Interactive, empathetic, tense-by-tense language learning coach with 5-stage flashcard system.
 """
+from streamlit.errors import StreamlitWidgetAlreadyInstantiatedError
 import streamlit as st
 import streamlit.components.v1 as components
 import os
@@ -1090,25 +1090,163 @@ orchestrator = LingoCraftOrchestrator(api_key=st.session_state.get("api_key", os
 
 # Sidebar
 with st.sidebar:
-    st.title("⚙️ Learning Setup")
+    # 1. Top Branding & Active Topic Anchor
+    st.markdown('<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;"><span style="font-size:1.6rem;">🎓</span><span style="font-size:1.35rem; font-weight:700; color:#174EA6; letter-spacing:-0.02rem;">LingoCraft</span></div>', unsafe_allow_html=True)
 
-    # API Key management
-    key_input = st.text_input(
-        "Gemini API Key (Optional)",
-        value=st.session_state.api_key,
-        type="password",
-        help="Leave blank to use pre-loaded curated curriculum or enter your key for full dynamic AI generation."
+    cur_topic = st.session_state.current_curriculum.get("topic", "Spanish: Verbo 'Hacer'")
+    target_l = st.session_state.current_curriculum.get("target_language", "Spanish")
+    native_l = st.session_state.current_curriculum.get("native_language", "English")
+    flag_emoji = "🇪🇸" if "span" in target_l.lower() else ("🇧🇷" if "portug" in target_l.lower() else "🇬🇧")
+
+    st.markdown(f"""
+    <div style="background: #F8F9FA; border: 1px solid #DADCE0; border-radius: 10px; padding: 6px 12px; margin: 4px 0 10px 0;">
+        <div style="font-size: 0.68rem; font-weight: 700; color: #5F6368; text-transform: uppercase; letter-spacing: 0.04rem;">Active Course</div>
+        <div style="font-size: 0.88rem; font-weight: 600; color: #174EA6; margin-top: 1px;">{flag_emoji} {cur_topic}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Topic Initializer & Switcher Popover
+    with st.popover("📚 Switch Topic / Language", use_container_width=True):
+        st.markdown("##### Choose Curriculum Topic")
+        study_mode = st.segmented_control(
+            "Select Curriculum Mode:",
+            ["Curated Core Topics", "Custom Topic (AI Powered)"],
+            default="Curated Core Topics",
+            label_visibility="collapsed"
+        )
+        if not study_mode:
+            study_mode = "Curated Core Topics"
+
+        if study_mode == "Curated Core Topics":
+            curated_choices = [
+                "Spanish: Irregular Verbs — Verbo 'Hacer'",
+                "Spanish: 'Ser' vs 'Estar' (Essentials)",
+                "Portuguese: Verbo Irregular — 'Fazer'",
+                "Portuguese: Pretérito Perfeito vs Imperfeito",
+                "English: Irregular Verbs — 'To Do / To Make'",
+                "Spanish: Pretérito Indefinido vs Imperfecto"
+            ]
+            chosen_topic = st.selectbox("Choose a Curated Topic:", curated_choices)
+            curated_native = st.selectbox("Your Native / Support Language:", ["English", "Portuguese", "Spanish"])
+
+            if st.button("Load Selected Curriculum", use_container_width=True, type="primary"):
+                if "Hacer" in chosen_topic or "Spanish" in chosen_topic:
+                    curriculum_obj = get_curriculum_or_fallback(chosen_topic, "Spanish", curated_native)
+                    st.session_state.current_curriculum = {
+                        "topic": curriculum_obj.title,
+                        "target_language": curriculum_obj.target_language,
+                        "target_language_code": curriculum_obj.target_language_code,
+                        "native_language": curriculum_obj.native_language,
+                        "description": curriculum_obj.description,
+                        "tenses_roadmap": curriculum_obj.tenses_roadmap,
+                    }
+                else:
+                    target_l_sub = chosen_topic.split(":")[0].strip()
+                    plan = orchestrator.initialize_curriculum(chosen_topic, target_l_sub, curated_native)
+                    st.session_state.current_curriculum = plan
+
+                st.session_state.active_tense_index = 0
+                st.session_state.active_card_step = 1
+                st.session_state.completed_card_steps = set()
+                st.session_state.current_pack = None
+                st.session_state.pack_cache = {}
+                st.session_state.completed_tenses = set()
+                st.session_state.needs_review_tenses = set()
+                st.session_state.speech_eval_result = None
+                st.session_state.quiz_eval_result = None
+                safe_set_main_tab(MAIN_TAB_LEARN)
+                auto_save_current_session()
+                st.rerun()
+
+        else:
+            custom_target = st.selectbox("Target Language:", ["Spanish", "Portuguese", "English"])
+            custom_native = st.selectbox("Native / Support Language:", ["English", "Portuguese", "Spanish"])
+            custom_topic_text = st.text_input("Topic Description:", "Irregular Verbs: Verbo 'Tener'")
+            if not st.session_state.api_key:
+                st.caption("ℹ️ *Enter a Gemini API Key under Settings below to generate custom AI topics.*")
+
+            if st.button("🚀 Initialize Custom Curriculum", use_container_width=True, type="primary"):
+                with st.spinner("Initializing Curriculum Roadmap with LingoCraft AI..."):
+                    plan = orchestrator.initialize_curriculum(custom_topic_text, custom_target, custom_native)
+                    st.session_state.current_curriculum = plan
+                    st.session_state.active_tense_index = 0
+                    st.session_state.active_card_step = 1
+                    st.session_state.completed_card_steps = set()
+                    st.session_state.current_pack = None
+                    st.session_state.pack_cache = {}
+                    st.session_state.completed_tenses = set()
+                    st.session_state.needs_review_tenses = set()
+                    st.session_state.speech_eval_result = None
+                    st.session_state.quiz_eval_result = None
+                    safe_set_main_tab(MAIN_TAB_LEARN)
+                    auto_save_current_session()
+                    st.success("Roadmap successfully initialized!")
+                    st.rerun()
+
+    st.markdown("<hr style='margin: 10px 0 12px 0;'>", unsafe_allow_html=True)
+
+    # 2. Pedagogical Roadmap (Top Priority - Immediately visible without scrolling)
+    roadmap = st.session_state.current_curriculum.get("tenses_roadmap", [])
+    total_tenses = len(roadmap)
+    comp_count = len(st.session_state.completed_tenses)
+    is_curriculum_completed = (
+        total_tenses > 0 and (
+            st.session_state.active_tense_index >= total_tenses
+            or comp_count >= total_tenses
+        )
     )
-    if key_input != st.session_state.api_key:
-        st.session_state.api_key = key_input
-        orchestrator = LingoCraftOrchestrator(api_key=key_input)
-        st.rerun()
 
-    if not st.session_state.api_key:
-        st.info("💡 Using **Curated Offline Mastery Packs**. Enter a Gemini API Key above for custom topics!")
+    if roadmap:
+        if 0 <= st.session_state.active_tense_index < total_tenses:
+            active_tense_name = roadmap[st.session_state.active_tense_index]
+        else:
+            active_tense_name = roadmap[-1]
+    else:
+        active_tense_name = "General"
 
-    # Study Session & Resume Widget
-    with st.expander("💾 Study Session & Resume", expanded=False):
+    st.markdown(f"""
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+        <span style="font-weight: 700; color: #202124; font-size: 0.95rem;">🗺️ Roadmap</span>
+        <span style="font-size: 0.78rem; color: #5F6368; font-weight: 600;">{comp_count}/{total_tenses} Complete</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.progress(comp_count / max(total_tenses, 1))
+
+    needs_rev_set = st.session_state.get("needs_review_tenses", set())
+    for idx, tense in enumerate(roadmap):
+        is_act = (idx == st.session_state.active_tense_index)
+        is_comp = (idx in st.session_state.completed_tenses)
+        is_rev = (idx in needs_rev_set)
+
+        if is_act:
+            label = f"● {idx+1}. {tense}"
+            btn_t = "primary"
+        elif is_comp:
+            label = f"✓ {idx+1}. {tense}"
+            btn_t = "secondary"
+        elif is_rev:
+            label = f"🔄 {idx+1}. {tense}"
+            btn_t = "secondary"
+        else:
+            label = f"⏳ {idx+1}. {tense}"
+            btn_t = "secondary"
+
+        st.button(
+            label,
+            key=f"sidebar_tense_{idx}",
+            use_container_width=True,
+            type=btn_t,
+            on_click=select_tense_and_study,
+            args=(idx,)
+        )
+
+    if is_curriculum_completed:
+        st.success("🎉 Roadmap Mastered! Check the main screen to start your next recommended topic.")
+
+    st.markdown("<hr style='margin: 14px 0 10px 0;'>", unsafe_allow_html=True)
+
+    # 3. Settings & Sessions (Collapsed Accordion at the bottom)
+    with st.expander("⚙️ Settings & Sessions", expanded=False):
         st.markdown(f"**Session Code:** `{st.session_state.session_id}`")
         st.caption("✅ Auto-saving active. Your progress is saved as you study.")
 
@@ -1137,6 +1275,22 @@ with st.sidebar:
                 auto_save_current_session()
                 st.toast("Progress saved to database!", icon="💾")
 
+        st.markdown("---")
+        # API Key management
+        key_input = st.text_input(
+            "Gemini API Key (Optional)",
+            value=st.session_state.api_key,
+            type="password",
+            help="Leave blank to use pre-loaded curated curriculum or enter your key for full dynamic AI generation."
+        )
+        if key_input != st.session_state.api_key:
+            st.session_state.api_key = key_input
+            orchestrator = LingoCraftOrchestrator(api_key=key_input)
+            st.rerun()
+
+        st.caption("ℹ️ *Required only for custom AI topics; curated topics work 100% offline without a key.*")
+
+        st.markdown("---")
         code_to_load = st.text_input("Resume by Session Code:", placeholder="e.g. lingo-123456", key="load_sid_input")
         if st.button("Load Session", use_container_width=True):
             if code_to_load.strip():
@@ -1166,7 +1320,6 @@ with st.sidebar:
         recents = session_manager.list_recent_sessions(limit=5)
         other_recents = [r for r in recents if r["session_id"] != st.session_state.session_id]
         if other_recents:
-            st.markdown("---")
             st.markdown("##### 🕒 Recent Study Sessions:")
             for r in other_recents:
                 t_str = time.strftime("%b %d, %H:%M", time.localtime(r["updated_at"]))
@@ -1197,150 +1350,25 @@ with st.sidebar:
                         st.session_state.session_loaded_msg = f"Resumed: {loaded['topic']}"
                         st.rerun()
 
-    st.markdown("---")
-    st.subheader("📚 Topic & Language Pair")
-
-    study_mode = st.segmented_control(
-        "Select Curriculum Mode:",
-        ["Curated Core Topics", "Custom Topic (AI Powered)"],
-        default="Curated Core Topics",
-        label_visibility="collapsed"
-    )
-    if not study_mode:
-        study_mode = "Curated Core Topics"
-
-    if study_mode == "Curated Core Topics":
-        curated_choices = [
-            "Spanish: Irregular Verbs — Verbo 'Hacer'",
-            "Spanish: 'Ser' vs 'Estar' (Essentials)",
-            "Portuguese: Verbo Irregular — 'Fazer'",
-            "Portuguese: Pretérito Perfeito vs Imperfeito",
-            "English: Irregular Verbs — 'To Do / To Make'",
-            "Spanish: Pretérito Indefinido vs Imperfecto"
-        ]
-        chosen_topic = st.selectbox("Choose a Curated Topic:", curated_choices)
-        curated_native = st.selectbox("Your Native / Support Language:", ["English", "Portuguese", "Spanish"])
-
-        if st.button("Load Selected Curriculum", use_container_width=True):
-            if "Hacer" in chosen_topic or "Spanish" in chosen_topic:
-                curriculum_obj = get_curriculum_or_fallback(chosen_topic, "Spanish", curated_native)
-                st.session_state.current_curriculum = {
-                    "topic": curriculum_obj.title,
-                    "target_language": curriculum_obj.target_language,
-                    "target_language_code": curriculum_obj.target_language_code,
-                    "native_language": curriculum_obj.native_language,
-                    "description": curriculum_obj.description,
-                    "tenses_roadmap": curriculum_obj.tenses_roadmap,
-                }
-            else:
-                target_l = chosen_topic.split(":")[0].strip()
-                plan = orchestrator.initialize_curriculum(chosen_topic, target_l, curated_native)
-                st.session_state.current_curriculum = plan
-
+        st.markdown("---")
+        if st.button("🔄 Reset progress and start over", use_container_width=True):
             st.session_state.active_tense_index = 0
             st.session_state.active_card_step = 1
             st.session_state.completed_card_steps = set()
-            st.session_state.current_pack = None
-            st.session_state.pack_cache = {}
             st.session_state.completed_tenses = set()
             st.session_state.needs_review_tenses = set()
+            st.session_state.current_pack = None
             st.session_state.speech_eval_result = None
             st.session_state.quiz_eval_result = None
             safe_set_main_tab(MAIN_TAB_LEARN)
             auto_save_current_session()
             st.rerun()
 
-    else:
-        custom_target = st.selectbox("Target Language:", ["Spanish", "Portuguese", "English"])
-        custom_native = st.selectbox("Native / Support Language:", ["English", "Portuguese", "Spanish"])
-        custom_topic_text = st.text_input("Topic Description:", "Irregular Verbs: Verbo 'Tener'")
-
-        if st.button("🚀 Initialize Custom Curriculum", use_container_width=True):
-            with st.spinner("Initializing Curriculum Roadmap with LingoCraft AI..."):
-                plan = orchestrator.initialize_curriculum(custom_topic_text, custom_target, custom_native)
-                st.session_state.current_curriculum = plan
-                st.session_state.active_tense_index = 0
-                st.session_state.active_card_step = 1
-                st.session_state.completed_card_steps = set()
-                st.session_state.current_pack = None
-                st.session_state.pack_cache = {}
-                st.session_state.completed_tenses = set()
-                st.session_state.needs_review_tenses = set()
-                st.session_state.speech_eval_result = None
-                st.session_state.quiz_eval_result = None
-                safe_set_main_tab(MAIN_TAB_LEARN)
-                auto_save_current_session()
-                st.success("Roadmap successfully initialized!")
-                st.rerun()
-
-    st.markdown("---")
-    st.subheader("🗺️ Pedagogical Roadmap")
-    roadmap = st.session_state.current_curriculum.get("tenses_roadmap", [])
-    total_tenses = len(roadmap)
-    is_curriculum_completed = (
-        total_tenses > 0 and (
-            st.session_state.active_tense_index >= total_tenses
-            or len(st.session_state.completed_tenses) >= total_tenses
-        )
-    )
-
-    if roadmap:
-        if 0 <= st.session_state.active_tense_index < total_tenses:
-            active_tense_name = roadmap[st.session_state.active_tense_index]
-        else:
-            active_tense_name = roadmap[-1]
-    else:
-        active_tense_name = "General"
-
-    needs_rev_set = st.session_state.get("needs_review_tenses", set())
-    for idx, tense in enumerate(roadmap):
-        is_act = (idx == st.session_state.active_tense_index)
-        is_comp = (idx in st.session_state.completed_tenses)
-        is_rev = (idx in needs_rev_set)
-
-        if is_comp:
-            label = f"🏆 {idx+1}. {tense}"
-        elif is_rev:
-            label = f"🔄 {idx+1}. {tense} (Review)"
-        elif is_act:
-            label = f"🎯 {idx+1}. {tense}"
-        else:
-            label = f"⏳ {idx+1}. {tense}"
-
-        btn_t = "primary" if is_act else "secondary"
-        st.button(
-            label,
-            key=f"sidebar_tense_{idx}",
-            use_container_width=True,
-            type=btn_t,
-            on_click=select_tense_and_study,
-            args=(idx,)
-        )
-
-    if is_curriculum_completed:
-        st.success("🎉 Roadmap Mastered! Check the main screen to start your next recommended topic.")
-
-    st.markdown("---")
-    if st.button("🔄 Reset progress and start over", use_container_width=True):
-        st.session_state.active_tense_index = 0
-        st.session_state.active_card_step = 1
-        st.session_state.completed_card_steps = set()
-        st.session_state.completed_tenses = set()
-        st.session_state.needs_review_tenses = set()
-        st.session_state.current_pack = None
-        st.session_state.speech_eval_result = None
-        st.session_state.quiz_eval_result = None
-        safe_set_main_tab(MAIN_TAB_LEARN)
-        auto_save_current_session()
-        st.rerun()
-
-
-    # Observability & Visual Element (VE) Telemetry (Google Frontend Standard)
-    # Gated behind ?debug=true or ?dev=true so language learners enjoy an uncluttered interface
-    is_debug_mode = (st.query_params.get("debug") == "true" or st.query_params.get("dev") == "true")
-    if is_debug_mode:
-        with st.expander("🛠️ Developer Telemetry (VE)", expanded=False):
-            st.caption("Tracks user interaction events and performance telemetry following Google frontend standards.")
+        # Observability & Visual Element (VE) Telemetry (Google Frontend Standard)
+        is_debug_mode = (st.query_params.get("debug") == "true" or st.query_params.get("dev") == "true")
+        if is_debug_mode:
+            st.markdown("---")
+            st.caption("🛠️ **Developer Telemetry (VE)**")
             ve_logs = st.session_state.get("ve_logs", [])
             if ve_logs:
                 for log in reversed(ve_logs[-6:]):
@@ -1358,26 +1386,56 @@ if st.session_state.get("session_loaded_msg"):
     st.toast(f"💾 {st.session_state.session_loaded_msg}", icon="✅")
     st.session_state.session_loaded_msg = None
 
-# Main Area Layout
+# Main Area Layout - Sleek Top Navigation Bar
 rank_info = session_manager.get_rank_for_xp(st.session_state.get("xp_points", 0))
-col_hdr_brand, col_hdr_xp = st.columns([2.6, 1.4])
+cur_topic = st.session_state.current_curriculum.get("topic", "Spanish: Verbo 'Hacer'")
+target_l = st.session_state.current_curriculum.get("target_language", "Spanish")
+flag_emoji = "🇪🇸" if "span" in target_l.lower() else ("🇧🇷" if "portug" in target_l.lower() else "🇬🇧")
+
+col_hdr_brand, col_hdr_center, col_hdr_xp = st.columns([1.6, 2.2, 1.8], vertical_alignment="center")
+
 with col_hdr_brand:
-    st.markdown('<h1 class="main-title" style="margin-bottom: 2px;">🎓 LingoCraft AI</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title" style="margin-bottom: 12px; font-size: 0.95rem;">Interactive foreign language coach with 5-stage active recall & speech practice</p>', unsafe_allow_html=True)
-with col_hdr_xp:
-    xp_val = st.session_state.get("xp_points", 0)
+    st.markdown('<div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 1.7rem;">🎓</span> <span style="font-size: 1.35rem; font-weight: 700; color: #174EA6; letter-spacing: -0.02rem;">LingoCraft</span></div>', unsafe_allow_html=True)
+
+with col_hdr_center:
     st.markdown(f"""
-    <div style="background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 14px; padding: 8px 14px; box-shadow: 0 1px 3px rgba(60,64,67,0.06); display: flex; flex-direction: column; align-items: flex-end; justify-content: center; margin-top: 4px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-weight: 700; color: #174EA6; font-size: 1rem;">⚡ {xp_val} XP</span>
-            <span class="badge-active" style="font-size: 0.78rem;">{rank_info['icon']} Lvl {rank_info['level']}: {rank_info['name']}</span>
-        </div>
-        <div style="font-size: 0.72rem; color: #5F6368; margin-top: 4px;">
-            {rank_info['current_xp']} / {rank_info['next_level_xp']} XP to next level
-        </div>
+    <div style="background: #F8F9FA; border: 1px solid #DADCE0; border-radius: 9999px; padding: 5px 14px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 1px 2px rgba(60,64,67,0.04);">
+        <span style="font-size: 1.05rem;">{flag_emoji}</span>
+        <span style="font-weight: 600; color: #202124; font-size: 0.88rem;">{cur_topic}</span>
     </div>
     """, unsafe_allow_html=True)
-    st.progress(rank_info['progress_ratio'])
+
+with col_hdr_xp:
+    xp_val = st.session_state.get("xp_points", 0)
+    col_badge, col_info = st.columns([3.4, 0.8], vertical_alignment="center")
+    with col_badge:
+        st.markdown(f"""
+        <div style="background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 12px; padding: 4px 10px; box-shadow: 0 1px 2px rgba(60,64,67,0.04); display: flex; flex-direction: column; align-items: flex-end;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 700; color: #174EA6; font-size: 0.92rem;">⚡ {xp_val} XP</span>
+                <span class="badge-active" style="font-size: 0.72rem; padding: 2px 7px;">{rank_info['icon']} Lvl {rank_info['level']}: {rank_info['name']}</span>
+            </div>
+            <div style="font-size: 0.68rem; color: #5F6368; margin-top: 1px;">
+                {rank_info['current_xp']} / {rank_info['next_level_xp']} XP ({int(rank_info['progress_ratio'] * 100)}%)
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_info:
+        with st.popover("ℹ️", use_container_width=True, help="About LingoCraft AI"):
+            st.markdown("#### 🎓 LingoCraft AI")
+            st.markdown("""
+            **Empathetic Active Recall Foreign Language Coach**
+
+            5-Stage Pedagogical Flow:
+            1. **Rule & Base Concept**
+            2. **Bilingual Comparative Phrase**
+            3. **Phonetic Breakdown & Audio**
+            4. **Voice Practice & Validation**
+            5. **Conjugation Quiz Challenge**
+
+            *Craftsman Gamification with persistent XP & spaced repetition.*
+            """)
+            st.caption(f"Session: `{st.session_state.session_id}`")
 
 if "_pending_main_tab" in st.session_state:
     st.session_state.main_tab = st.session_state.pop("_pending_main_tab")
@@ -1418,39 +1476,8 @@ with tab_curriculum:
     st.info(st.session_state.current_curriculum.get("description", ""))
 
     st.markdown("---")
-    st.markdown("### 🎯 Interactive tenses stepper")
-    st.caption("Click any tense below to jump directly to its 5-stage flashcard study:")
-
-    # Top Stepper Bar (Clickable Stage Buttons with 3-Tier Status)
-    c_cols = st.columns(min(len(roadmap), 5)) if roadmap else []
-    for i, t in enumerate(roadmap):
-        with c_cols[i % len(c_cols)]:
-            is_act = (i == st.session_state.active_tense_index)
-            is_comp = (i in st.session_state.completed_tenses)
-            is_rev = (i in st.session_state.needs_review_tenses)
-
-            if is_act:
-                icon = "🎯 "
-            elif is_comp:
-                icon = "🏆 "
-            elif is_rev:
-                icon = "🔄 "
-            else:
-                icon = "⏳ "
-
-            btn_t = "primary" if is_act else "secondary"
-            st.button(
-                f"{icon}Stage {i+1}\n{t}",
-                key=f"curr_stepper_btn_{i}",
-                use_container_width=True,
-                type=btn_t,
-                on_click=select_tense_and_study,
-                args=(i, 1),
-                help=f"Click to study Stage {i+1}: {t}"
-            )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 📚 Stages overview")
+    st.markdown("### 📚 Syllabus & Stages Overview")
+    st.caption("Detailed breakdown of all roadmap stages. Select any stage to study or review:")
 
     for i, t in enumerate(roadmap):
         is_act = (i == st.session_state.active_tense_index)
