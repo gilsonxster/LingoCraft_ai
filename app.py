@@ -679,10 +679,13 @@ def format_relative_timestamp(ts: float) -> str:
 
 
 def safe_set_main_tab(tab_name: str):
-    """Safely updates main_tab, or queues it if widget is already instantiated."""
+    """Safely updates main_tab, or queues it via _pending_main_tab if widget is already instantiated."""
     st.session_state.main_tab = tab_name
     st.session_state["_pending_main_tab"] = tab_name
-    st.session_state["main_tab_control"] = tab_name
+    try:
+        st.session_state["main_tab_control"] = tab_name
+    except (StreamlitWidgetAlreadyInstantiatedError, Exception):
+        pass
 
 
 def select_tense_and_study(idx: int):
@@ -1921,7 +1924,10 @@ def _coach_tab_chat_fragment(curr_tense_name: str, coach_prompts: list):
 
 if "_pending_main_tab" in st.session_state:
     st.session_state.main_tab = st.session_state.pop("_pending_main_tab")
-    st.session_state["main_tab_control"] = st.session_state.main_tab
+    try:
+        st.session_state["main_tab_control"] = st.session_state.main_tab
+    except (StreamlitWidgetAlreadyInstantiatedError, Exception):
+        pass
 
 # Main Navigation Tabs (Strictly Isolated Views)
 selected_tab = st.segmented_control(

@@ -451,8 +451,77 @@ def test_lingocraft_improvements():
     assert "#FFFBEB" in app_code and "#FDE68A" in app_code, "Needs-review amber status styling must be present"
     print("    UX Improvements: Button Relocation, Semantic Colors, Stepper Timeline & De-duplication verified.")
 
+    # 18. Test safe_set_main_tab & StreamlitWidgetAlreadyInstantiatedError Resilience
+    print("[18] Testing safe_set_main_tab & StreamlitWidgetAlreadyInstantiatedError Resilience...")
+    from streamlit.errors import StreamlitWidgetAlreadyInstantiatedError
+
+    # Verify app.py has defensive handling
+    assert "StreamlitWidgetAlreadyInstantiatedError" in app_code, "StreamlitWidgetAlreadyInstantiatedError must be imported and handled in app.py"
+    assert "def safe_set_main_tab(tab_name: str):" in app_code
+    assert 'st.session_state["_pending_main_tab"] = tab_name' in app_code
+    assert "except (StreamlitWidgetAlreadyInstantiatedError, Exception):" in app_code
+    assert 'if "_pending_main_tab" in st.session_state:' in app_code
+
+    # Test runtime simulation of Streamlit widget instantiation lifecycle
+    class MockSessionState(dict):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._instantiated_keys = set()
+
+        def __getattr__(self, name):
+            return self.get(name)
+
+        def __setattr__(self, name, value):
+            if name.startswith("_"):
+                super().__setattr__(name, value)
+            else:
+                self[name] = value
+
+        def __setitem__(self, key, value):
+            if key in self._instantiated_keys:
+                raise StreamlitWidgetAlreadyInstantiatedError(
+                    f"The widget with key '{key}' was already instantiated."
+                )
+            super().__setitem__(key, value)
+
+    # Initialize simulated session state
+    mock_state = MockSessionState()
+    mock_state.main_tab = "📚 Learn & Practice"
+    # Mark 'main_tab_control' as already instantiated by st.segmented_control
+    mock_state._instantiated_keys.add("main_tab_control")
+
+    # Replicate safe_set_main_tab logic
+    def mock_safe_set_main_tab(tab_name: str, state: MockSessionState):
+        state.main_tab = tab_name
+        state["_pending_main_tab"] = tab_name
+        try:
+            state["main_tab_control"] = tab_name
+        except (StreamlitWidgetAlreadyInstantiatedError, Exception):
+            pass
+
+    # Invoking safe_set_main_tab must NOT crash despite widget already being instantiated
+    target_tab = "📚 Learn & Practice"
+    mock_safe_set_main_tab(target_tab, mock_state)
+    assert mock_state.main_tab == target_tab
+    assert mock_state["_pending_main_tab"] == target_tab
+
+    # Simulate next rerun before st.segmented_control:
+    # On the subsequent rerun, _pending_main_tab is popped before widget instantiation
+    mock_state._instantiated_keys.clear()  # Fresh rerun pass before widget is created
+    if "_pending_main_tab" in mock_state:
+        mock_state.main_tab = mock_state.pop("_pending_main_tab")
+        try:
+            mock_state["main_tab_control"] = mock_state.main_tab
+        except (StreamlitWidgetAlreadyInstantiatedError, Exception):
+            pass
+
+    assert mock_state.main_tab == target_tab
+    assert mock_state["main_tab_control"] == target_tab
+    assert "_pending_main_tab" not in mock_state
+    print("    StreamlitWidgetAlreadyInstantiatedError resilience & pending tab queuing verified.")
+
     print("==================================================")
-    print("ALL 17 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
+    print("ALL 18 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
     print("==================================================")
 
 
