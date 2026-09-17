@@ -2698,3 +2698,35 @@ def get_curriculum_or_fallback(topic_query: str = '', *args, **kwargs) -> Curric
         cards_by_tense=cards
     )
 
+
+def get_tense_nav_icon(tense_name: str, idx: int, is_comp: bool = False, is_rev: bool = False, is_act: bool = False) -> str:
+    """Returns a Google Cloud Console style icon representing stage category or completion state."""
+    if is_rev:
+        return "🔄"
+    if is_comp:
+        return "✓"
+    t_lower = tense_name.lower()
+    if "subjunt" in t_lower:
+        return "🎭"
+    if "imperativ" in t_lower:
+        return "📢"
+    if "condicion" in t_lower or "would" in t_lower:
+        return "💡"
+    if "próximo" in t_lower or "proximo" in t_lower or "going to" in t_lower:
+        return "➡️"
+    if "futur" in t_lower:
+        return "🔮"
+    if "imperfect" in t_lower or "imperfeito" in t_lower:
+        return "🕰️"
+    if "indefinid" in t_lower or "perfeito" in t_lower:
+        return "⏪"
+    if "present" in t_lower:
+        return "💬"
+    if "infinitiv" in t_lower:
+        return "📋"
+    if "gerund" in t_lower:
+        return "⚡"
+    if "particip" in t_lower:
+        return "📌"
+    return "🔹"
+

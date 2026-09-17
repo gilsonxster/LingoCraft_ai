@@ -373,8 +373,28 @@ def test_lingocraft_improvements():
     session_manager.delete_session(s2_dedup)
     print("    Recent sessions deduplication by unique topic verified.")
 
+    # 15. Test Google Cloud Console Roadmap Navigation Icons & State Mapping
+    print("[15] Testing Google Cloud Console Roadmap Navigation Icons & State Mapping...")
+    from curriculum_data import get_tense_nav_icon
+    assert get_tense_nav_icon("Infinitivo", 0, is_comp=False, is_rev=False, is_act=False) == "📋"
+    assert get_tense_nav_icon("Gerundio", 1, is_comp=False, is_rev=False, is_act=False) == "⚡"
+    assert get_tense_nav_icon("Participio", 2, is_comp=False, is_rev=False, is_act=False) == "📌"
+    assert get_tense_nav_icon("Presente de Indicativo", 3, is_comp=False, is_rev=False, is_act=False) == "💬"
+    assert get_tense_nav_icon("Pretérito Indefinido", 4, is_comp=False, is_rev=False, is_act=False) == "⏪"
+    assert get_tense_nav_icon("Pretérito Imperfecto", 5, is_comp=False, is_rev=False, is_act=False) == "🕰️"
+    assert get_tense_nav_icon("Futuro Próximo", 6, is_comp=False, is_rev=False, is_act=False) == "➡️"
+    assert get_tense_nav_icon("Futuro Simple", 7, is_comp=False, is_rev=False, is_act=False) == "🔮"
+    assert get_tense_nav_icon("Condicional Simple", 8, is_comp=False, is_rev=False, is_act=False) == "💡"
+    assert get_tense_nav_icon("Presente de Subjuntivo", 9, is_comp=False, is_rev=False, is_act=False) == "🎭"
+
+    # Status overrides: completed -> checkmark, review -> refresh
+    assert get_tense_nav_icon("Infinitivo", 0, is_comp=True, is_rev=False, is_act=False) == "✓"
+    assert get_tense_nav_icon("Infinitivo", 0, is_comp=True, is_rev=False, is_act=True) == "✓"
+    assert get_tense_nav_icon("Participio", 2, is_comp=False, is_rev=True, is_act=True) == "🔄"
+    print("    Google Cloud Console roadmap navigation icons & state mapping verified.")
+
     print("==================================================")
-    print("ALL 14 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
+    print("ALL 15 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
     print("==================================================")
 
 
