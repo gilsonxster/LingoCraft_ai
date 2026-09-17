@@ -225,12 +225,13 @@ def load_session(session_id: str, db_path: str = DB_PATH) -> Optional[Dict[str, 
         return None
 
 
-def list_recent_sessions(limit: int = 5, db_path: str = DB_PATH) -> List[Dict[str, Any]]:
-    """Lists the most recently updated study sessions."""
+def list_recent_sessions(limit: int = 5, dedup_by_topic: bool = True, db_path: str = DB_PATH) -> List[Dict[str, Any]]:
+    """Lists the most recently updated study sessions, optionally deduplicating by unique topic."""
     try:
         init_db(db_path)
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
+            fetch_limit = limit * 6 if dedup_by_topic else limit
             cursor.execute("""
                 SELECT
                     session_id, topic, target_language, native_language,
@@ -241,10 +242,18 @@ def list_recent_sessions(limit: int = 5, db_path: str = DB_PATH) -> List[Dict[st
                 FROM study_sessions
                 ORDER BY updated_at DESC
                 LIMIT ?
-            """, (limit,))
+            """, (fetch_limit,))
             rows = cursor.fetchall()
             results = []
+            seen_topics = set()
             for r in rows:
+                topic = r[1]
+                if dedup_by_topic:
+                    clean_key = topic.strip().lower()
+                    if clean_key in seen_topics:
+                        continue
+                    seen_topics.add(clean_key)
+
                 try:
                     curriculum = json.loads(r[7])
                     roadmap = curriculum.get("tenses_roadmap", [])
@@ -271,6 +280,8 @@ def list_recent_sessions(limit: int = 5, db_path: str = DB_PATH) -> List[Dict[st
                     "xp_points": xp_val,
                     "updated_at": r[10]
                 })
+                if len(results) >= limit:
+                    break
             return results
     except Exception as e:
         print(f"Error listing recent sessions: {e}")

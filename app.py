@@ -11,7 +11,7 @@ import random
 import time
 import re
 import html
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # Load environment
@@ -71,6 +71,26 @@ st.markdown("""
         --space-5: 20px;
         --space-6: 24px;
         --space-8: 32px;
+    }
+
+        /* Hide default Streamlit header and Deploy watermark */
+    .stAppHeader, .stDeployButton, header[data-testid="stHeader"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+    }
+
+    /* Style top main navigation segmented control */
+    div[data-testid="stSegmentedControl"] {
+        margin: 12px 0 16px 0;
+        display: flex;
+        justify-content: center;
+    }
+    div[data-testid="stSegmentedControl"] button {
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        padding: 6px 18px !important;
+        border-radius: 9999px !important;
     }
 
     /* Accessibility focus rings */
@@ -333,12 +353,27 @@ def award_xp(amount: int, event_id: str, reason: str):
         log_ve_event("xp_awarded", "reward", {"amount": amount, "event_id": event_id, "total_xp": st.session_state.xp_points})
 
 # Navigation Helper Callbacks
+def format_relative_timestamp(ts: float) -> str:
+    """Formats a UNIX timestamp into a human-friendly relative time string."""
+    try:
+        dt = datetime.fromtimestamp(ts)
+        now = datetime.now()
+        if dt.date() == now.date():
+            return f"Today, {dt.strftime('%I:%M %p').lstrip('0')}"
+        elif dt.date() == (now.date() - timedelta(days=1)):
+            return f"Yesterday, {dt.strftime('%I:%M %p').lstrip('0')}"
+        else:
+            return dt.strftime("%b %d, %I:%M %p")
+    except Exception:
+        return time.strftime("%b %d, %H:%M", time.localtime(ts))
+
+
 def safe_set_main_tab(tab_name: str):
     """Safely updates main_tab, or queues it if widget is already instantiated."""
-    try:
-        st.session_state.main_tab = tab_name
-    except (StreamlitWidgetAlreadyInstantiatedError, Exception):
-        st.session_state["_pending_main_tab"] = tab_name
+    st.session_state.main_tab = tab_name
+    st.session_state["_pending_main_tab"] = tab_name
+    st.session_state["main_tab_control"] = tab_name
+
 
 def select_tense_and_study(idx: int):
     st.session_state.active_tense_index = idx
@@ -1317,17 +1352,25 @@ with st.sidebar:
                 else:
                     st.error("Session code not found.")
 
-        recents = session_manager.list_recent_sessions(limit=5)
+        recents = session_manager.list_recent_sessions(limit=5, dedup_by_topic=True)
         other_recents = [r for r in recents if r["session_id"] != st.session_state.session_id]
         if other_recents:
             st.markdown("##### 🕒 Recent Study Sessions:")
             for r in other_recents:
-                t_str = time.strftime("%b %d, %H:%M", time.localtime(r["updated_at"]))
+                t_str = format_relative_timestamp(r["updated_at"])
                 rev_n = r.get("needs_review_count", 0)
                 rev_suffix = f" | 🔄 {rev_n}" if rev_n > 0 else ""
                 xp_n = r.get("xp_points", 0)
                 xp_suffix = f" | ⚡ {xp_n} XP" if xp_n > 0 else ""
-                c_lbl = f"{r['topic'][:14]}... (🏆 {r['completed_count']}/{r['total_tenses']}{xp_suffix})"
+                raw_topic = r['topic']
+                if "—" in raw_topic:
+                    display_topic = raw_topic.split("—")[-1].strip()
+                elif ":" in raw_topic:
+                    display_topic = raw_topic.split(":")[-1].strip()
+                else:
+                    display_topic = raw_topic[:18]
+                c_lbl = f"{display_topic} (🏆 {r['completed_count']}/{r['total_tenses']}{xp_suffix})"
+                st.caption(f"📅 *{t_str}*")
                 if st.button(f"▶️ {c_lbl}", key=f"rec_btn_{r['session_id']}", help=f"Code: {r['session_id']} | Updated: {t_str}", use_container_width=True):
                     loaded = session_manager.load_session(r["session_id"])
                     if loaded:
@@ -1421,7 +1464,7 @@ with col_hdr_xp:
         </div>
         """, unsafe_allow_html=True)
     with col_info:
-        with st.popover("ℹ️", use_container_width=True, help="About LingoCraft AI"):
+        with st.popover("About", use_container_width=True, help="About LingoCraft AI"):
             st.markdown("#### 🎓 LingoCraft AI")
             st.markdown("""
             **Empathetic Active Recall Foreign Language Coach**
@@ -1437,17 +1480,82 @@ with col_hdr_xp:
             """)
             st.caption(f"Session: `{st.session_state.session_id}`")
 
+@st.fragment
+def _coach_tab_chat_fragment(curr_tense_name: str, coach_prompts: list):
+    """
+    Isolated Streamlit fragment for Coach Tab chat and quick questions.
+    Interactions here execute in-place without triggering a full page rerun.
+    """
+    if coach_prompts:
+        st.markdown(f"##### 💡 Smart follow-up questions for **{curr_tense_name}**:")
+        p_cols = st.columns(min(len(coach_prompts), 3))
+        for p_idx, prompt_text in enumerate(coach_prompts[:3]):
+            with p_cols[p_idx]:
+                if st.button(f"👉 {prompt_text}", key=f"quick_prompt_{curr_tense_name}_{p_idx}", use_container_width=True):
+                    log_ve_event("coach_quick_prompt_click", "click", {"prompt": prompt_text})
+                    st.session_state.chat_history.append({"role": "user", "content": prompt_text})
+                    with st.spinner("Coach LingoCraft is typing..."):
+                        coach_agent = LingoCraftOrchestrator(api_key=st.session_state.get("api_key", os.getenv("GEMINI_API_KEY", "")))
+                        ans = coach_agent.ask_coach(
+                            question=prompt_text,
+                            current_topic=st.session_state.current_curriculum.get("topic", ""),
+                            current_tense=curr_tense_name,
+                            target_lang=st.session_state.current_curriculum.get("target_language", "Spanish"),
+                            native_lang=st.session_state.current_curriculum.get("native_language", "English"),
+                            chat_history=st.session_state.chat_history
+                        )
+                        st.session_state.chat_history.append({"role": "assistant", "content": ans})
+                    auto_save_current_session()
+                    st.rerun(scope="fragment")
+
+    st.markdown("---")
+
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    if user_query := st.chat_input("Ask Coach LingoCraft a question (for example, 'Why is this form irregular?' or 'Give me 3 examples'):"):
+        log_ve_event("coach_query_submit", "submit")
+        st.session_state.chat_history.append({"role": "user", "content": user_query})
+        with st.chat_message("user"):
+            st.markdown(user_query)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Coach LingoCraft is typing..."):
+                coach_agent = LingoCraftOrchestrator(api_key=st.session_state.get("api_key", os.getenv("GEMINI_API_KEY", "")))
+                ans = coach_agent.ask_coach(
+                    question=user_query,
+                    current_topic=st.session_state.current_curriculum.get("topic", ""),
+                    current_tense=curr_tense_name,
+                    target_lang=st.session_state.current_curriculum.get("target_language", "Spanish"),
+                    native_lang=st.session_state.current_curriculum.get("native_language", "English"),
+                    chat_history=st.session_state.chat_history
+                )
+                st.markdown(ans)
+                st.session_state.chat_history.append({"role": "assistant", "content": ans})
+        auto_save_current_session()
+        st.rerun(scope="fragment")
+
+
 if "_pending_main_tab" in st.session_state:
     st.session_state.main_tab = st.session_state.pop("_pending_main_tab")
+    st.session_state["main_tab_control"] = st.session_state.main_tab
 
-# Main Navigation Tabs
-tab_learn, tab_coach, tab_curriculum = st.tabs(
-    MAIN_TAB_OPTIONS,
-    key="main_tab",
-    on_change="rerun"
+# Main Navigation Tabs (Strictly Isolated Views)
+selected_tab = st.segmented_control(
+    "Navigation View",
+    options=MAIN_TAB_OPTIONS,
+    default=st.session_state.get("main_tab", MAIN_TAB_LEARN),
+    key="main_tab_control",
+    label_visibility="collapsed"
 )
+if not selected_tab:
+    selected_tab = st.session_state.get("main_tab", MAIN_TAB_LEARN)
+st.session_state.main_tab = selected_tab
 
-with tab_curriculum:
+sync_url_params()
+
+if selected_tab == MAIN_TAB_CURRICULUM:
     log_ve_event("tab_curriculum_view", "impression")
     st.subheader(f"Topic: {st.session_state.current_curriculum.get('topic')}")
     col_meta1, col_meta2, col_meta3, col_meta4, col_meta5 = st.columns(5)
@@ -1553,63 +1661,7 @@ with tab_curriculum:
         st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
 
-@st.fragment
-def _coach_tab_chat_fragment(curr_tense_name: str, coach_prompts: list):
-    """
-    Isolated Streamlit fragment for Coach Tab chat and quick questions.
-    Interactions here execute in-place without triggering a full page rerun.
-    """
-    if coach_prompts:
-        st.markdown(f"##### 💡 Smart follow-up questions for **{curr_tense_name}**:")
-        p_cols = st.columns(min(len(coach_prompts), 3))
-        for p_idx, prompt_text in enumerate(coach_prompts[:3]):
-            with p_cols[p_idx]:
-                if st.button(f"👉 {prompt_text}", key=f"quick_prompt_{curr_tense_name}_{p_idx}", use_container_width=True):
-                    log_ve_event("coach_quick_prompt_click", "click", {"prompt": prompt_text})
-                    st.session_state.chat_history.append({"role": "user", "content": prompt_text})
-                    with st.spinner("Coach LingoCraft is typing..."):
-                        coach_agent = LingoCraftOrchestrator(api_key=st.session_state.get("api_key", os.getenv("GEMINI_API_KEY", "")))
-                        ans = coach_agent.ask_coach(
-                            question=prompt_text,
-                            current_topic=st.session_state.current_curriculum.get("topic", ""),
-                            current_tense=curr_tense_name,
-                            target_lang=st.session_state.current_curriculum.get("target_language", "Spanish"),
-                            native_lang=st.session_state.current_curriculum.get("native_language", "English"),
-                            chat_history=st.session_state.chat_history
-                        )
-                        st.session_state.chat_history.append({"role": "assistant", "content": ans})
-                    auto_save_current_session()
-                    st.rerun(scope="fragment")
-
-    st.markdown("---")
-
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    if user_query := st.chat_input("Ask Coach LingoCraft a question (for example, 'Why is this form irregular?' or 'Give me 3 examples'):"):
-        log_ve_event("coach_query_submit", "submit")
-        st.session_state.chat_history.append({"role": "user", "content": user_query})
-        with st.chat_message("user"):
-            st.markdown(user_query)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Coach LingoCraft is typing..."):
-                coach_agent = LingoCraftOrchestrator(api_key=st.session_state.get("api_key", os.getenv("GEMINI_API_KEY", "")))
-                ans = coach_agent.ask_coach(
-                    question=user_query,
-                    current_topic=st.session_state.current_curriculum.get("topic", ""),
-                    current_tense=curr_tense_name,
-                    target_lang=st.session_state.current_curriculum.get("target_language", "Spanish"),
-                    native_lang=st.session_state.current_curriculum.get("native_language", "English"),
-                    chat_history=st.session_state.chat_history
-                )
-                st.markdown(ans)
-                st.session_state.chat_history.append({"role": "assistant", "content": ans})
-        auto_save_current_session()
-        st.rerun(scope="fragment")
-
-with tab_coach:
+elif selected_tab == MAIN_TAB_COACH:
     log_ve_event("tab_coach_view", "impression")
     curr_tense_name = active_tense_name
     st.subheader("💬 Empathetic Language Coach")
@@ -1622,7 +1674,7 @@ with tab_coach:
     _coach_tab_chat_fragment(curr_tense_name, coach_prompts)
 
 
-with tab_learn:
+else:
     log_ve_event("tab_learn_view", "impression", {
         "tense_index": st.session_state.active_tense_index,
         "card_step": st.session_state.active_card_step
@@ -1816,7 +1868,7 @@ with tab_learn:
             <h2 style="margin: 0 0 8px 0; color: #202124; font-size: 1.55rem; font-weight: 700;">{current_tense_name}</h2>
             """, unsafe_allow_html=True)
         with col_hdr_skip:
-            if st.button("🏆 Mark mastered ➔", help="Jump to the next stage if you already know this form", use_container_width=True):
+            if st.button("✓ Skip to next stage ➔", help="Jump to the next stage if you already know this form", use_container_width=True):
                 award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
                 st.session_state.completed_tenses.add(st.session_state.active_tense_index)
                 st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
