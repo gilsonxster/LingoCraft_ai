@@ -78,12 +78,18 @@ st.markdown("""
     .stDeployButton, 
     [data-testid="stAppDeployButton"],
     [data-testid="stDeployButton"],
-    header [data-testid="stToolbar"],
-    header [data-testid="stToolbar"] *,
     button[title="Deploy this app"],
     #MainMenu,
     [data-testid="stMainMenu"],
-    footer {
+    footer,
+    /* Hide right-side toolbar items (deploy & menu) without hiding left expand button */
+    header [data-testid="stToolbar"] .stAppDeployButton,
+    header [data-testid="stToolbar"] [data-testid="stAppDeployButton"],
+    header [data-testid="stToolbar"] #MainMenu,
+    header [data-testid="stToolbar"] [data-testid="stMainMenu"],
+    header [data-testid="stToolbar"] button[aria-label="Manage app"],
+    header [data-testid="stToolbar"] button[title="View app in Streamlit Community Cloud"],
+    header [data-testid="stToolbar"] [data-testid="manage-app-button"] {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
@@ -97,7 +103,7 @@ st.markdown("""
         background: transparent !important;
         pointer-events: none !important;
         z-index: 99999 !important;
-        height: 2.85rem !important;
+        height: 3rem !important;
         border: none !important;
         box-shadow: none !important;
     }
@@ -108,38 +114,50 @@ st.markdown("""
     }
 
     /* Prominent Sidebar Expand Button when sidebar is collapsed */
-    [data-testid="stExpandSidebarButton"] {
+    [data-testid="stExpandSidebarButton"],
+    button[data-testid="stExpandSidebarButton"],
+    [data-testid="stExpandSidebarButton"] button {
         pointer-events: auto !important;
         visibility: visible !important;
         display: inline-flex !important;
+        align-items: center !important;
         position: fixed !important;
         top: 10px !important;
         left: 14px !important;
         z-index: 999999 !important;
-    }
-
-    [data-testid="stExpandSidebarButton"] button {
         background-color: #FFFFFF !important;
         border: 1px solid #DADCE0 !important;
         border-radius: 8px !important;
         color: #1B2E5D !important;
-        box-shadow: 0 1px 3px rgba(60, 64, 67, 0.12) !important;
-        transition: all 0.2s ease !important;
-        padding: 5px 12px !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 6px !important;
+        box-shadow: 0 1px 4px rgba(60, 64, 67, 0.18) !important;
+        padding: 6px 14px !important;
         cursor: pointer !important;
+        gap: 6px !important;
+        height: auto !important;
+        width: auto !important;
+        opacity: 1 !important;
+        transition: all 0.2s ease !important;
     }
 
-    [data-testid="stExpandSidebarButton"] button::after {
-        content: "Open Roadmap";
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #1B2E5D;
-        letter-spacing: -0.01rem;
+    [data-testid="stExpandSidebarButton"] svg,
+    button[data-testid="stExpandSidebarButton"] svg {
+        fill: #1B2E5D !important;
+        color: #1B2E5D !important;
+        width: 18px !important;
+        height: 18px !important;
     }
 
+    [data-testid="stExpandSidebarButton"]::after,
+    button[data-testid="stExpandSidebarButton"]::after {
+        content: "Open Roadmap" !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        color: #1B2E5D !important;
+        letter-spacing: -0.01rem !important;
+    }
+
+    [data-testid="stExpandSidebarButton"]:hover,
+    button[data-testid="stExpandSidebarButton"]:hover,
     [data-testid="stExpandSidebarButton"] button:hover {
         background-color: #E8F0FE !important;
         border-color: #1A73E8 !important;
@@ -148,23 +166,50 @@ st.markdown("""
         transform: translateY(-1px) !important;
     }
 
-    [data-testid="stExpandSidebarButton"] button:hover::after {
+    [data-testid="stExpandSidebarButton"]:hover::after,
+    [data-testid="stExpandSidebarButton"]:hover svg,
+    button[data-testid="stExpandSidebarButton"]:hover::after,
+    button[data-testid="stExpandSidebarButton"]:hover svg {
         color: #174EA6 !important;
+        fill: #174EA6 !important;
     }
 
     /* Style the Collapse Button inside the Sidebar */
     [data-testid="stSidebarCollapseButton"] {
         pointer-events: auto !important;
         visibility: visible !important;
+        display: inline-flex !important;
+        opacity: 1 !important;
     }
 
     [data-testid="stSidebarCollapseButton"] button {
+        pointer-events: auto !important;
+        visibility: visible !important;
+        display: inline-flex !important;
+        opacity: 1 !important;
+        background-color: #FFFFFF !important;
+        border: 1px solid #DADCE0 !important;
         border-radius: 6px !important;
-        transition: background-color 0.15s ease !important;
+        color: #1B2E5D !important;
+        width: 32px !important;
+        height: 32px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        box-shadow: 0 1px 2px rgba(60, 64, 67, 0.08) !important;
+        transition: all 0.15s ease !important;
     }
 
     [data-testid="stSidebarCollapseButton"] button:hover {
-        background-color: #E4EBF7 !important;
+        background-color: #E8F0FE !important;
+        border-color: #1A73E8 !important;
+        color: #174EA6 !important;
+        transform: scale(1.05) !important;
+    }
+
+    [data-testid="stSidebarCollapseButton"] button svg {
+        fill: #1B2E5D !important;
+        color: #1B2E5D !important;
     }
 
     /* Brand sidebar toggle button in main navigation header */
@@ -1298,6 +1343,7 @@ if "awarded_xp_events" not in st.session_state:
 
 
 # Synchronize session ID with browser localStorage to preserve state across browser restarts
+# and install robust sidebar toggle event listener on parent document
 components.html(f"""
 <script>
   try {{
@@ -1313,6 +1359,37 @@ components.html(f"""
       window.localStorage.setItem('lingocraft_sid', '{st.session_state.session_id}');
     }}
   }} catch(e) {{}}
+
+  try {{
+    const pDoc = window.parent.document;
+    if (pDoc && !pDoc._lingocraft_toggle_handler_installed) {{
+      pDoc._lingocraft_toggle_handler_installed = true;
+      pDoc.addEventListener('click', function(e) {{
+        const target = e.target;
+        const btn = target.closest ? target.closest('.brand-sidebar-toggle') : null;
+        if (btn) {{
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Check for expand button (rendered in header when sidebar is collapsed)
+          const expandBtn = pDoc.querySelector('[data-testid="stExpandSidebarButton"] button') || pDoc.querySelector('[data-testid="stExpandSidebarButton"]');
+          // Check for collapse button (rendered in sidebar header when sidebar is open)
+          const collapseBtn = pDoc.querySelector('[data-testid="stSidebarCollapseButton"] button') || pDoc.querySelector('[data-testid="stSidebarCollapseButton"]');
+          
+          // Determine if sidebar is currently collapsed: expandBtn is visible in the viewport
+          const isCollapsed = expandBtn && (expandBtn.offsetWidth > 0 || expandBtn.offsetHeight > 0 || window.getComputedStyle(expandBtn).display !== 'none');
+          
+          if (isCollapsed) {{
+            expandBtn.click();
+          }} else if (collapseBtn) {{
+            collapseBtn.click();
+          }} else if (expandBtn) {{
+            expandBtn.click();
+          }}
+        }}
+      }}, true);
+    }}
+  }} catch(e) {{}}
 </script>
 """, height=0, width=0)
 
@@ -1321,8 +1398,21 @@ orchestrator = LingoCraftOrchestrator(api_key=st.session_state.get("api_key", os
 
 # Sidebar
 with st.sidebar:
-    # 1. Top Branding & Active Topic Anchor
-    st.markdown('<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;"><span style="font-size:1.6rem;">🎓</span><span style="font-size:1.35rem; font-weight:700; color:#174EA6; letter-spacing:-0.02rem;">LingoCraft</span></div>', unsafe_allow_html=True)
+    # 1. Top Branding & Active Topic Anchor with Close Button
+    st.markdown("""
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.6rem;">🎓</span>
+            <span style="font-size: 1.35rem; font-weight: 700; color: #174EA6; letter-spacing: -0.02rem;">LingoCraft</span>
+        </div>
+        <button class="brand-sidebar-toggle" 
+                title="Collapse Sidebar Roadmap" 
+                aria-label="Collapse Sidebar Roadmap" 
+                style="background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; font-weight: 600; color: #1B2E5D; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(60,64,67,0.06);">
+            ◀ Close
+        </button>
+    </div>
+    """, unsafe_allow_html=True)
 
     cur_topic = st.session_state.current_curriculum.get("topic", "Spanish: Verbo 'Hacer'")
     target_l = st.session_state.current_curriculum.get("target_language", "Spanish")
@@ -1650,10 +1740,10 @@ col_hdr_brand, col_hdr_center, col_hdr_xp = st.columns([1.6, 2.2, 1.8], vertical
 with col_hdr_brand:
     st.markdown("""
     <div style="display: flex; align-items: center; gap: 8px;">
-        <button onclick="document.querySelector('[data-testid=\\'stExpandSidebarButton\\'] button')?.click() || document.querySelector('[data-testid=\\'stSidebarCollapseButton\\'] button')?.click()" 
-                class="brand-sidebar-toggle" 
+        <button class="brand-sidebar-toggle" 
                 title="Toggle Sidebar Roadmap"
-                aria-label="Toggle Sidebar Roadmap">
+                aria-label="Toggle Sidebar Roadmap"
+                style="width: 32px; height: 32px; padding: 0;">
             <span style="font-size: 1.25rem; line-height: 1;">☰</span>
         </button>
         <span style="font-size: 1.7rem;">🎓</span> 

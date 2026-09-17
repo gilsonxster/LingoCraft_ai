@@ -398,8 +398,27 @@ def test_lingocraft_improvements():
     assert get_tense_nav_icon("Participio", 2, is_comp=False, is_rev=True, is_act=True) == "🔄"
     print("    Google Cloud Console roadmap navigation icons & state mapping verified.")
 
+    # 16. Test Sidebar Expand/Collapse Toggle & CSS Integrity
+    print("[16] Testing Sidebar Expand/Collapse Toggle & CSS Integrity...")
+    with open("app.py") as f:
+        app_code = f.read()
+
+    # Ensure we never hide stToolbar wholesale, which would break stExpandSidebarButton
+    assert "header [data-testid=\"stToolbar\"],\n" not in app_code, "stToolbar must not be hidden wholesale"
+    assert "header [data-testid=\"stToolbar\"] *,\n" not in app_code, "stToolbar children must not be hidden wholesale"
+    
+    # Ensure stExpandSidebarButton is styled with Open Roadmap
+    assert 'content: "Open Roadmap"' in app_code or "content: 'Open Roadmap'" in app_code
+    assert '[data-testid="stExpandSidebarButton"]' in app_code
+    assert '[data-testid="stSidebarCollapseButton"]' in app_code
+
+    # Ensure brand-sidebar-toggle is present in header and sidebar, and wired in JS
+    assert 'brand-sidebar-toggle' in app_code
+    assert '_lingocraft_toggle_handler_installed' in app_code
+    print("    Sidebar expand/collapse toggle and CSS integrity verified.")
+
     print("==================================================")
-    print("ALL 15 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
+    print("ALL 16 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
     print("==================================================")
 
 
