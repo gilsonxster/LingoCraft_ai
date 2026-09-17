@@ -74,10 +74,12 @@ st.markdown("""
         --space-8: 32px;
     }
 
-    /* Hide default Streamlit Deploy button and deploy watermarks */
+    /* Hide default Streamlit Deploy button, MainMenu, footer, and deploy watermarks */
     .stDeployButton, 
     [data-testid="stAppDeployButton"],
-    button[title="Deploy this app"] {
+    button[title="Deploy this app"],
+    #MainMenu,
+    footer {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
@@ -1246,13 +1248,25 @@ if "current_curriculum" not in st.session_state:
     }
 
 if "main_tab" not in st.session_state:
-    safe_set_main_tab(MAIN_TAB_LEARN)
+    url_tab = st.query_params.get("tab", "").strip().lower()
+    if url_tab in TAB_KEY_TO_NAME:
+        safe_set_main_tab(TAB_KEY_TO_NAME[url_tab])
+    else:
+        safe_set_main_tab(MAIN_TAB_LEARN)
 
 if "active_tense_index" not in st.session_state:
-    st.session_state.active_tense_index = 0
+    url_tense = st.query_params.get("tense", "").strip()
+    if url_tense.isdigit():
+        st.session_state.active_tense_index = int(url_tense)
+    else:
+        st.session_state.active_tense_index = 0
 
 if "active_card_step" not in st.session_state:
-    st.session_state.active_card_step = 1  # 1 to 5
+    url_step = st.query_params.get("step", "").strip()
+    if url_step.isdigit() and 1 <= int(url_step) <= 5:
+        st.session_state.active_card_step = int(url_step)
+    else:
+        st.session_state.active_card_step = 1  # 1 to 5
 
 if "completed_card_steps" not in st.session_state:
     st.session_state.completed_card_steps = set()
