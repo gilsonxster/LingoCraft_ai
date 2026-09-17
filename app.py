@@ -48,21 +48,21 @@ st.markdown("""
        Google Material 3 (GM3) & 4px Spacing Design Tokens
        ==================================================================== */
     :root {
-        --gmat-sys-color-primary: #1A73E8;
+        --gmat-sys-color-primary: #2563EB;
         --gmat-sys-color-on-primary: #FFFFFF;
-        --gmat-sys-color-primary-container: #E8F0FE;
-        --gmat-sys-color-on-primary-container: #174EA6;
+        --gmat-sys-color-primary-container: #EFF6FF;
+        --gmat-sys-color-on-primary-container: #1D4ED8;
         --gmat-sys-color-surface: #FFFFFF;
-        --gmat-sys-color-surface-variant: #F8F9FA;
-        --gmat-sys-color-outline: #DADCE0;
-        --gmat-sys-color-text-primary: #202124;
-        --gmat-sys-color-text-secondary: #5F6368;
-        --gmat-sys-color-success: #137333;
-        --gmat-sys-color-success-container: #E6F4EA;
-        --gmat-sys-color-error: #C5221F;
-        --gmat-sys-color-error-container: #FCE8E6;
-        --gmat-sys-color-warning: #B06000;
-        --gmat-sys-color-warning-container: #FEF7E0;
+        --gmat-sys-color-surface-variant: #F8FAFC;
+        --gmat-sys-color-outline: #E2E8F0;
+        --gmat-sys-color-text-primary: #1E293B;
+        --gmat-sys-color-text-secondary: #64748B;
+        --gmat-sys-color-success: #15803D;
+        --gmat-sys-color-success-container: #F0FDF4;
+        --gmat-sys-color-error: #B91C1C;
+        --gmat-sys-color-error-container: #FEF2F2;
+        --gmat-sys-color-warning: #B45309;
+        --gmat-sys-color-warning-container: #FFFBEB;
 
         /* Strict 4px Spacing Scale */
         --space-1: 4px;
@@ -159,10 +159,10 @@ st.markdown("""
     [data-testid="stExpandSidebarButton"]:hover,
     button[data-testid="stExpandSidebarButton"]:hover,
     [data-testid="stExpandSidebarButton"] button:hover {
-        background-color: #E8F0FE !important;
-        border-color: #1A73E8 !important;
-        color: #174EA6 !important;
-        box-shadow: 0 2px 6px rgba(26, 115, 232, 0.25) !important;
+        background-color: #EFF6FF !important;
+        border-color: #2563EB !important;
+        color: #1D4ED8 !important;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2) !important;
         transform: translateY(-1px) !important;
     }
 
@@ -170,8 +170,8 @@ st.markdown("""
     [data-testid="stExpandSidebarButton"]:hover svg,
     button[data-testid="stExpandSidebarButton"]:hover::after,
     button[data-testid="stExpandSidebarButton"]:hover svg {
-        color: #174EA6 !important;
-        fill: #174EA6 !important;
+        color: #1D4ED8 !important;
+        fill: #1D4ED8 !important;
     }
 
     /* Style the Collapse Button inside the Sidebar */
@@ -201,9 +201,9 @@ st.markdown("""
     }
 
     [data-testid="stSidebarCollapseButton"] button:hover {
-        background-color: #E8F0FE !important;
-        border-color: #1A73E8 !important;
-        color: #174EA6 !important;
+        background-color: #EFF6FF !important;
+        border-color: #2563EB !important;
+        color: #1D4ED8 !important;
         transform: scale(1.05) !important;
     }
 
@@ -234,7 +234,7 @@ st.markdown("""
     .main-title {
         font-size: 2.25rem;
         font-weight: 700;
-        color: #174EA6;
+        color: #1D4ED8;
         margin-bottom: var(--space-1);
         letter-spacing: -0.02rem;
     }
@@ -257,7 +257,7 @@ st.markdown("""
     }
     .feedback-box-success {
         background-color: var(--gmat-sys-color-success-container);
-        border: 1px solid #A8DAB5;
+        border: 1px solid #BBF7D0;
         border-radius: 12px;
         padding: var(--space-4);
         color: var(--gmat-sys-color-success);
@@ -265,7 +265,7 @@ st.markdown("""
     }
     .feedback-box-error {
         background-color: var(--gmat-sys-color-error-container);
-        border: 1px solid #F6AEA9;
+        border: 1px solid #FECACA;
         border-radius: 12px;
         padding: var(--space-4);
         color: var(--gmat-sys-color-error);
@@ -284,36 +284,36 @@ st.markdown("""
         box-shadow: 0 2px 6px rgba(60, 64, 67, 0.12);
     }
     .badge-mastered {
-        background-color: var(--gmat-sys-color-success-container);
-        color: var(--gmat-sys-color-success);
-        border: 1px solid #A8DAB5;
+        background-color: #F0FDF4;
+        color: #15803D;
+        border: 1px solid #BBF7D0;
         font-weight: 600;
         font-size: 0.8125rem;
         padding: 4px 10px;
         border-radius: 9999px;
     }
     .badge-review {
-        background-color: var(--gmat-sys-color-warning-container);
-        color: var(--gmat-sys-color-warning);
-        border: 1px solid #F9AB00;
+        background-color: #FFFBEB;
+        color: #B45309;
+        border: 1px solid #FDE68A;
         font-weight: 600;
         font-size: 0.8125rem;
         padding: 4px 10px;
         border-radius: 9999px;
     }
     .badge-active {
-        background-color: var(--gmat-sys-color-primary-container);
-        color: var(--gmat-sys-color-on-primary-container);
-        border: 1px solid #C2E7FF;
+        background-color: #EFF6FF;
+        color: #1D4ED8;
+        border: 1px solid #BFDBFE;
         font-weight: 600;
         font-size: 0.8125rem;
         padding: 4px 10px;
         border-radius: 9999px;
     }
     .badge-upcoming {
-        background-color: var(--gmat-sys-color-surface-variant);
-        color: var(--gmat-sys-color-text-secondary);
-        border: 1px solid var(--gmat-sys-color-outline);
+        background-color: #F8FAFC;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
         font-weight: 600;
         font-size: 0.8125rem;
         padding: 4px 10px;
@@ -429,11 +429,11 @@ st.markdown("""
         width: 100% !important;
         padding: 8px 12px !important;
         min-height: 42px !important;
-        border-radius: 6px !important;
-        border: none !important;
+        border-radius: 8px !important;
+        border: 1px solid transparent !important;
         box-shadow: none !important;
         outline: none !important;
-        transition: background-color 0.15s ease, color 0.15s ease !important;
+        transition: all 0.15s ease !important;
     }
 
     [data-testid="stSidebar"] div[class*="st-key-sidebar_tense_"] > button div[data-testid="stMarkdownContainer"] {
@@ -453,43 +453,137 @@ st.markdown("""
         align-items: center !important;
     }
 
-    /* Inactive Roadmap Item - Clean, Flat, Borderless */
-    [data-testid="stSidebar"] div[class*="st-key-sidebar_tense_"] > button[kind="secondary"] {
-        background-color: transparent !important;
-        color: #1B2E5D !important;
-        border: 1px solid transparent !important;
-    }
-
-    [data-testid="stSidebar"] div[class*="st-key-sidebar_tense_"] > button[kind="secondary"] p {
-        color: #1B2E5D !important;
-        font-weight: 500 !important;
-    }
-
-    [data-testid="stSidebar"] div[class*="st-key-sidebar_tense_"] > button[kind="secondary"]:hover {
-        background-color: #E4EBF7 !important;
-        color: #1B2E5D !important;
-    }
-
-    /* Active Roadmap Item - Google Cloud Console Selected Row Highlight (#E9EEF7) */
-    [data-testid="stSidebar"] div[class*="st-key-sidebar_tense_"] > button[kind="primary"] {
-        background-color: #E9EEF7 !important;
-        color: #1B2E5D !important;
-        border: 1px solid #D7E1EE !important;
-        box-shadow: 0 1px 2px rgba(27, 46, 93, 0.04) !important;
-    }
-
-    [data-testid="stSidebar"] div[class*="st-key-sidebar_tense_"] > button[kind="primary"] p {
-        color: #1B2E5D !important;
-        font-weight: 600 !important;
-    }
-
-    [data-testid="stSidebar"] div[class*="st-key-sidebar_tense_"] > button[kind="primary"]:hover {
-        background-color: #E0E8F4 !important;
-    }
-
     [data-testid="stSidebar"] div[class*="st-key-sidebar_tense_"] > button:focus:not(:focus-visible) {
         outline: none !important;
         box-shadow: none !important;
+    }
+
+    /* Primary & Secondary Buttons Across App */
+    button[kind="primary"] {
+        background-color: #2563EB !important;
+        border: 1.5px solid #2563EB !important;
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+        box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2) !important;
+        transition: all 0.15s ease !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #1D4ED8 !important;
+        border-color: #1D4ED8 !important;
+        box-shadow: 0 3px 8px rgba(37, 99, 235, 0.32) !important;
+        transform: translateY(-1px) !important;
+    }
+    button[kind="secondary"] {
+        border: 1px solid #D1D5DB !important;
+        color: #374151 !important;
+        background-color: #FFFFFF !important;
+        transition: all 0.15s ease !important;
+    }
+    button[kind="secondary"]:hover {
+        border-color: #2563EB !important;
+        color: #2563EB !important;
+        background-color: #EFF6FF !important;
+    }
+
+    /* Horizontal Stepper Timeline Progression */
+    div[data-testid="stHorizontalBlock"]:has(button[key*="stepper_"]) {
+        position: relative !important;
+        align-items: center !important;
+        margin-bottom: 4px !important;
+        padding: 4px 0 !important;
+    }
+
+    /* Continuous connecting timeline bar behind stepper pills */
+    div[data-testid="stHorizontalBlock"]:has(button[key*="stepper_"])::before {
+        content: "" !important;
+        position: absolute !important;
+        top: 50% !important;
+        left: 6% !important;
+        right: 6% !important;
+        height: 2px !important;
+        background: #E5E7EB !important;
+        z-index: 0 !important;
+        transform: translateY(-50%) !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(button[key*="stepper_"]) [data-testid="column"] {
+        position: relative !important;
+        z-index: 1 !important;
+    }
+
+    div[data-testid="stHorizontalBlock"] button[key*="stepper_"] {
+        border-radius: 9999px !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        padding: 6px 12px !important;
+        min-height: 38px !important;
+        transition: all 0.15s ease !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    div[data-testid="stHorizontalBlock"] button[key*="stepper_"][kind="secondary"] {
+        background-color: #FFFFFF !important;
+        border: 1.5px solid #E5E7EB !important;
+        color: #4B5563 !important;
+    }
+
+    div[data-testid="stHorizontalBlock"] button[key*="stepper_"][kind="secondary"]:hover {
+        border-color: #2563EB !important;
+        color: #2563EB !important;
+        background-color: #EFF6FF !important;
+        transform: translateY(-1px) !important;
+    }
+
+    div[data-testid="stHorizontalBlock"] button[key*="stepper_"][kind="primary"] {
+        background-color: #2563EB !important;
+        border: 1.5px solid #2563EB !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28) !important;
+    }
+
+    /* Soften Expander / Accordion styling across the app */
+    div[data-testid="stExpander"],
+    details[data-testid="stExpander"] {
+        border: 1px solid #E5E7EB !important;
+        border-radius: 12px !important;
+        background-color: #FFFFFF !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+        overflow: hidden !important;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    }
+
+    div[data-testid="stExpander"]:hover,
+    details[data-testid="stExpander"]:hover {
+        border-color: #D1D5DB !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    summary[data-testid="stExpanderToggleIcon"],
+    div[data-testid="stExpander"] summary {
+        border-radius: 12px !important;
+        padding: 10px 14px !important;
+        font-weight: 600 !important;
+        color: #1F2937 !important;
+    }
+
+    div[data-testid="stExpander"] summary:hover {
+        background-color: #F9FAFB !important;
+        color: #2563EB !important;
+    }
+
+    div[data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+        padding: 12px 14px 16px 14px !important;
+        border-top: 1px solid #F3F4F6 !important;
+    }
+
+    /* Sleek Rounded Progress Bars */
+    div[data-testid="stProgress"] > div > div > div > div {
+        background-color: #2563EB !important;
+        border-radius: 9999px !important;
+    }
+    div[data-testid="stProgress"] > div > div {
+        border-radius: 9999px !important;
+        background-color: #E2E8F0 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -600,6 +694,25 @@ def select_tense_and_study(idx: int):
     st.session_state.quiz_eval_result = None
     safe_set_main_tab(MAIN_TAB_LEARN)
     auto_save_current_session()
+
+def skip_or_advance_stage(current_tense_name: str, award_xp_flag: bool = True):
+    """Marks current stage as complete and advances to the next stage in roadmap."""
+    if award_xp_flag:
+        award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
+    st.session_state.completed_tenses.add(st.session_state.active_tense_index)
+    st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
+    st.session_state.active_tense_index += 1
+    st.session_state.active_card_step = 1
+    st.session_state.completed_card_steps = set()
+    st.session_state.current_pack = None
+    st.session_state.speech_eval_result = None
+    st.session_state.quiz_eval_result = None
+    st.session_state.micro_practice_result = None
+    auto_save_current_session()
+    try:
+        st.rerun(scope="app")
+    except TypeError:
+        st.rerun()
 
 def select_tense_and_coach(idx: int):
     st.session_state.active_tense_index = idx
@@ -887,13 +1000,12 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     # STAGE 1: CONCEPT & RULE
     # -------------------------------------------------------------
     if st.session_state.active_card_step == 1:
-        col_c1_title, col_c1_coach = st.columns([3.2, 1.2])
-        with col_c1_title:
-            st.markdown(f"<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>{pack.card1_concept.title}</h3>", unsafe_allow_html=True)
+        col_c1_rule, col_c1_coach = st.columns([3.6, 1.2], vertical_alignment="center")
+        with col_c1_rule:
+            st.markdown("<h4 style='margin: 4px 0 0 0; color: #1E293B;'>📌 Grammatical rule & structure</h4>", unsafe_allow_html=True)
         with col_c1_coach:
             render_incontext_coach(current_tense_name, 1, pack, target_l, native_l)
 
-        st.markdown("#### 📌 Grammatical rule & structure")
         st.markdown(pack.card1_concept.rule)
 
         # Full Person Conjugation Table / List (1st, 2nd, and 3rd person) OR Infinitive Structures
@@ -952,7 +1064,10 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
             st.markdown(f"\n{pills_md}\n\n")
 
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_space, col_next = st.columns([2.5, 1.5])
+        col_space, col_skip, col_next = st.columns([1.8, 1.2, 1.4])
+        with col_skip:
+            if st.button("Skip stage ➔", key="skip_stage_c1", help="Jump to next stage if you already know this form", use_container_width=True, type="secondary"):
+                skip_or_advance_stage(current_tense_name, award_xp_flag=True)
         with col_next:
             if st.button("Next: Bilingual Example ➔", key="next_c1", use_container_width=True, type="primary"):
                 st.session_state.completed_card_steps.add(1)
@@ -964,14 +1079,14 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     # STAGE 2: BILINGUAL EXAMPLE
     # -------------------------------------------------------------
     elif st.session_state.active_card_step == 2:
-        col_c2_title, col_c2_coach = st.columns([3.2, 1.2])
+        col_c2_title, col_c2_coach = st.columns([3.2, 1.2], vertical_alignment="center")
         with col_c2_title:
-            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>Real-World Comparative Phrase</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #1D4ED8; font-size: 1.35rem;'>Real-World Comparative Phrase</h3>", unsafe_allow_html=True)
         with col_c2_coach:
             render_incontext_coach(current_tense_name, 2, pack, target_l, native_l)
 
         st.markdown(f"#### 🎯 Target language ({target_l}):")
-        st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#174EA6; background-color:#E8F0FE; padding:16px; border-radius:12px; border-left:5px solid #1A73E8;'>{pack.card2_example.target_sentence}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#1D4ED8; background-color:#EFF6FF; padding:16px; border-radius:12px; border-left:5px solid #2563EB;'>{pack.card2_example.target_sentence}</div>", unsafe_allow_html=True)
 
         target_lang_code = st.session_state.current_curriculum.get("target_language_code", "es")
         clean_audio_target = pack.card2_example.target_sentence.replace("**", "").replace("*", "")
@@ -995,12 +1110,15 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
             st.markdown(pack.card2_example.breakdown)
 
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_prev, col_next = st.columns([1.2, 1.4])
+        col_prev, col_skip, col_next = st.columns([1.1, 1.1, 1.4])
         with col_prev:
-            if st.button("⬅ Back to concept", key="back_c2", use_container_width=True):
+            if st.button("⬅ Back to concept", key="back_c2", use_container_width=True, type="secondary"):
                 st.session_state.active_card_step = 1
                 auto_save_current_session()
                 st.rerun(scope="fragment")
+        with col_skip:
+            if st.button("Skip stage ➔", key="skip_stage_c2", help="Jump to next stage if you already know this form", use_container_width=True, type="secondary"):
+                skip_or_advance_stage(current_tense_name, award_xp_flag=True)
         with col_next:
             if st.button("Next: pronunciation guide ➔", key="next_c2", use_container_width=True, type="primary"):
                 st.session_state.completed_card_steps.add(2)
@@ -1013,9 +1131,9 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     # STAGE 3: PRONUNCIATION GUIDE
     # -------------------------------------------------------------
     elif st.session_state.active_card_step == 3:
-        col_c3_title, col_c3_coach = st.columns([3.2, 1.2])
+        col_c3_title, col_c3_coach = st.columns([3.2, 1.2], vertical_alignment="center")
         with col_c3_title:
-            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>Phonetic Breakdown & Native Audio</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #1D4ED8; font-size: 1.35rem;'>Phonetic Breakdown & Native Audio</h3>", unsafe_allow_html=True)
         with col_c3_coach:
             render_incontext_coach(current_tense_name, 3, pack, target_l, native_l)
 
@@ -1023,7 +1141,7 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
 
         st.markdown("#### 🗣️ Syllables & stress pattern:")
         st.markdown(f"<div class='phonetic-box'>{pack.card3_pronunciation.phonetic_breakdown}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='margin-bottom:12px;'><span style='background-color:#E8F0FE; color:#174EA6; font-weight:600; padding:4px 12px; border-radius:9999px; font-size:0.875rem; border:1px solid #C2E7FF;'>Primary stress: {pack.card3_pronunciation.stressed_syllables}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='margin-bottom:12px;'><span style='background-color:#EFF6FF; color:#1D4ED8; font-weight:600; padding:4px 12px; border-radius:9999px; font-size:0.875rem; border:1px solid #BFDBFE;'>Primary stress: {pack.card3_pronunciation.stressed_syllables}</span></div>", unsafe_allow_html=True)
 
         st.markdown("#### 🎧 Spoken audio (zero-latency cached):")
         target_lang_code = st.session_state.current_curriculum.get("target_language_code", "es")
@@ -1043,12 +1161,15 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
             st.markdown(pack.card3_pronunciation.phonetic_tips)
 
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_prev, col_next = st.columns([1.2, 1.4])
+        col_prev, col_skip, col_next = st.columns([1.1, 1.1, 1.4])
         with col_prev:
-            if st.button("⬅ Back to example", key="back_c3", use_container_width=True):
+            if st.button("⬅ Back to example", key="back_c3", use_container_width=True, type="secondary"):
                 st.session_state.active_card_step = 2
                 auto_save_current_session()
                 st.rerun(scope="fragment")
+        with col_skip:
+            if st.button("Skip stage ➔", key="skip_stage_c3", help="Jump to next stage if you already know this form", use_container_width=True, type="secondary"):
+                skip_or_advance_stage(current_tense_name, award_xp_flag=True)
         with col_next:
             if st.button("Next: speech validation ➔", key="next_c3", use_container_width=True, type="primary"):
                 st.session_state.completed_card_steps.add(3)
@@ -1061,15 +1182,15 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     # STAGE 4: SPEECH VALIDATION
     # -------------------------------------------------------------
     elif st.session_state.active_card_step == 4:
-        col_c4_title, col_c4_coach = st.columns([3.2, 1.2])
+        col_c4_title, col_c4_coach = st.columns([3.2, 1.2], vertical_alignment="center")
         with col_c4_title:
-            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>Voice Practice & Speech Evaluation</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #1D4ED8; font-size: 1.35rem;'>Voice Practice & Speech Evaluation</h3>", unsafe_allow_html=True)
         with col_c4_coach:
             render_incontext_coach(current_tense_name, 4, pack, target_l, native_l)
 
         st.markdown("Speak this sentence aloud:")
         target_display = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', pack.card4_speech.target_phrase)
-        st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#174EA6; background-color:#E8F0FE; padding:16px; border-radius:12px; border-left:5px solid #1A73E8;'>{target_display}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:1.35rem; font-weight:600; color:#1D4ED8; background-color:#EFF6FF; padding:16px; border-radius:12px; border-left:5px solid #2563EB;'>{target_display}</div>", unsafe_allow_html=True)
 
         st.markdown(f"*Expected phonetic flow: `{pack.card4_speech.expected_phonetics}`*")
         st.caption(f"Focus sounds: {pack.card4_speech.key_focus_sounds}")
@@ -1077,12 +1198,15 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
         _speech_practice_fragment(current_tense_name, pack, target_l, native_l)
 
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
-        col_prev, col_next = st.columns([1.2, 1.4])
+        col_prev, col_skip, col_next = st.columns([1.1, 1.1, 1.4])
         with col_prev:
-            if st.button("⬅ Back to pronunciation", key="back_c4", use_container_width=True):
+            if st.button("⬅ Back to pronunciation", key="back_c4", use_container_width=True, type="secondary"):
                 st.session_state.active_card_step = 3
                 auto_save_current_session()
                 st.rerun(scope="fragment")
+        with col_skip:
+            if st.button("Skip stage ➔", key="skip_stage_c4", help="Jump to next stage if you already know this form", use_container_width=True, type="secondary"):
+                skip_or_advance_stage(current_tense_name, award_xp_flag=True)
         with col_next:
             if st.button("Next: conjugation quiz ➔", key="next_c4", use_container_width=True, type="primary"):
                 st.session_state.completed_card_steps.add(4)
@@ -1096,9 +1220,9 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
     # STAGE 5: CONJUGATION QUIZ (Shuffled Options & No Pre-selection)
     # -------------------------------------------------------------
     elif st.session_state.active_card_step == 5:
-        col_c5_title, col_c5_coach = st.columns([3.2, 1.2])
+        col_c5_title, col_c5_coach = st.columns([3.2, 1.2], vertical_alignment="center")
         with col_c5_title:
-            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #174EA6; font-size: 1.35rem;'>Master Tense Conjugation Challenge</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='margin: 8px 0 4px 0; color: #1D4ED8; font-size: 1.35rem;'>Master Tense Conjugation Challenge</h3>", unsafe_allow_html=True)
         with col_c5_coach:
             render_incontext_coach(current_tense_name, 5, pack, target_l, native_l)
 
@@ -1141,18 +1265,8 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
                         st.session_state.micro_practice_result = None
 
         with col_skip_t:
-            if st.button("⏩ Skip and mark tense complete", key="skip_quiz", use_container_width=True):
-                st.session_state.completed_card_steps.add(5)
-                st.session_state.completed_tenses.add(st.session_state.active_tense_index)
-                st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
-                st.session_state.active_tense_index += 1
-                st.session_state.active_card_step = 1
-                st.session_state.completed_card_steps = set()
-                st.session_state.current_pack = None
-                st.session_state.speech_eval_result = None
-                st.session_state.quiz_eval_result = None
-                auto_save_current_session()
-                st.rerun(scope="app")
+            if st.button("⏩ Skip and mark tense complete", key="skip_quiz", use_container_width=True, type="secondary"):
+                skip_or_advance_stage(current_tense_name, award_xp_flag=False)
 
         # Display Quiz Feedback
         if st.session_state.quiz_eval_result:
@@ -1166,17 +1280,7 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
 
                 # Advance to Next Tense Button
                 if st.button("🏆 Complete tense and advance to next ➔", type="primary", use_container_width=True):
-                    award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
-                    st.session_state.completed_tenses.add(st.session_state.active_tense_index)
-                    st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
-                    st.session_state.active_tense_index += 1
-                    st.session_state.active_card_step = 1
-                    st.session_state.completed_card_steps = set()
-                    st.session_state.current_pack = None
-                    st.session_state.speech_eval_result = None
-                    st.session_state.quiz_eval_result = None
-                    auto_save_current_session()
-                    st.rerun(scope="app")
+                    skip_or_advance_stage(current_tense_name, award_xp_flag=True)
 
             else:
                 st.session_state.needs_review_tenses.add(st.session_state.active_tense_index)
@@ -1205,23 +1309,12 @@ def _flashcard_study_fragment(pack, current_tense_name: str, total_tenses: int):
 
                     if st.session_state.micro_practice_result:
                         if st.button("Now advance to next tense ➔", type="primary"):
-                            award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
-                            st.session_state.completed_card_steps.add(5)
-                            st.session_state.completed_tenses.add(st.session_state.active_tense_index)
-                            st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
-                            st.session_state.active_tense_index += 1
-                            st.session_state.active_card_step = 1
-                            st.session_state.completed_card_steps = set()
-                            st.session_state.current_pack = None
-                            st.session_state.speech_eval_result = None
-                            st.session_state.quiz_eval_result = None
-                            auto_save_current_session()
-                            st.rerun(scope="app")
+                            skip_or_advance_stage(current_tense_name, award_xp_flag=True)
 
         st.markdown("<hr style='margin:24px 0 16px 0;'>", unsafe_allow_html=True)
         col_prev, col_space = st.columns([1.2, 4])
         with col_prev:
-            if st.button("⬅ Back to speech validation", key="back_c5", use_container_width=True):
+            if st.button("⬅ Back to speech validation", key="back_c5", use_container_width=True, type="secondary"):
                 st.session_state.active_card_step = 4
                 auto_save_current_session()
                 st.rerun(scope="fragment")
@@ -1482,6 +1575,74 @@ with st.sidebar:
     st.progress(comp_count / max(total_tenses, 1))
 
     needs_rev_set = st.session_state.get("needs_review_tenses", set())
+    sidebar_style_rules = []
+    for idx, tense in enumerate(roadmap):
+        is_act = (idx == st.session_state.active_tense_index)
+        is_comp = (idx in st.session_state.completed_tenses)
+        is_rev = (idx in needs_rev_set)
+
+        if is_act:
+            sidebar_style_rules.append(f"""
+            div[class*="st-key-sidebar_tense_{idx}"] > button {{
+                background-color: #EFF6FF !important;
+                border: 1.5px solid #BFDBFE !important;
+                box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1) !important;
+            }}
+            div[class*="st-key-sidebar_tense_{idx}"] > button p {{
+                color: #1D4ED8 !important;
+                font-weight: 700 !important;
+            }}
+            div[class*="st-key-sidebar_tense_{idx}"] > button:hover {{
+                background-color: #DBEAFE !important;
+            }}
+            """)
+        elif is_rev:
+            sidebar_style_rules.append(f"""
+            div[class*="st-key-sidebar_tense_{idx}"] > button {{
+                background-color: #FFFBEB !important;
+                border: 1px solid #FDE68A !important;
+            }}
+            div[class*="st-key-sidebar_tense_{idx}"] > button p {{
+                color: #B45309 !important;
+                font-weight: 600 !important;
+            }}
+            div[class*="st-key-sidebar_tense_{idx}"] > button:hover {{
+                background-color: #FEF3C7 !important;
+            }}
+            """)
+        elif is_comp:
+            sidebar_style_rules.append(f"""
+            div[class*="st-key-sidebar_tense_{idx}"] > button {{
+                background-color: #F0FDF4 !important;
+                border: 1px solid #BBF7D0 !important;
+            }}
+            div[class*="st-key-sidebar_tense_{idx}"] > button p {{
+                color: #15803D !important;
+                font-weight: 600 !important;
+            }}
+            div[class*="st-key-sidebar_tense_{idx}"] > button:hover {{
+                background-color: #DCFCE7 !important;
+            }}
+            """)
+        else:
+            sidebar_style_rules.append(f"""
+            div[class*="st-key-sidebar_tense_{idx}"] > button {{
+                background-color: transparent !important;
+                border: 1px solid transparent !important;
+            }}
+            div[class*="st-key-sidebar_tense_{idx}"] > button p {{
+                color: #4B5563 !important;
+                font-weight: 500 !important;
+            }}
+            div[class*="st-key-sidebar_tense_{idx}"] > button:hover {{
+                background-color: #E2E8F0 !important;
+                color: #1E293B !important;
+            }}
+            """)
+
+    if sidebar_style_rules:
+        st.markdown(f"<style>{''.join(sidebar_style_rules)}</style>", unsafe_allow_html=True)
+
     for idx, tense in enumerate(roadmap):
         is_act = (idx == st.session_state.active_tense_index)
         is_comp = (idx in st.session_state.completed_tenses)
@@ -2077,30 +2238,13 @@ else:
         pack = st.session_state.current_pack
 
 
-        # Consolidated Stage Header & Status Bar
-        topic_title = st.session_state.current_curriculum.get("topic", "Curriculum")
-        col_hdr_title, col_hdr_skip = st.columns([3.2, 1.3])
-        with col_hdr_title:
-            st.markdown(f"""
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 2px;">
-                <span class="badge-active" style="font-size: 0.78rem; font-weight: 700;">Stage {st.session_state.active_tense_index + 1} of {len(roadmap)}</span>
-                <span style="color: #5F6368; font-size: 0.85rem;">{topic_title}</span>
-            </div>
-            <h2 style="margin: 0 0 8px 0; color: #202124; font-size: 1.55rem; font-weight: 700;">{current_tense_name}</h2>
-            """, unsafe_allow_html=True)
-        with col_hdr_skip:
-            if st.button("✓ Skip to next stage ➔", help="Jump to the next stage if you already know this form", use_container_width=True):
-                award_xp(50, f"stage_mastered_{current_tense_name}", f"Stage mastered: {current_tense_name}")
-                st.session_state.completed_tenses.add(st.session_state.active_tense_index)
-                st.session_state.needs_review_tenses.discard(st.session_state.active_tense_index)
-                st.session_state.active_tense_index += 1
-                st.session_state.active_card_step = 1
-                st.session_state.completed_card_steps = set()
-                st.session_state.current_pack = None
-                st.session_state.speech_eval_result = None
-                st.session_state.quiz_eval_result = None
-                auto_save_current_session()
-                st.rerun()
+        # Consolidated Stage Header
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 2px;">
+            <span class="badge-active" style="font-size: 0.78rem; font-weight: 700;">Stage {st.session_state.active_tense_index + 1} of {len(roadmap)}</span>
+        </div>
+        <h2 style="margin: 2px 0 10px 0; color: #1E293B; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02rem;">{current_tense_name}</h2>
+        """, unsafe_allow_html=True)
 
         _flashcard_study_fragment(pack, current_tense_name, total_tenses)
 

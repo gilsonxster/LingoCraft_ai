@@ -417,8 +417,42 @@ def test_lingocraft_improvements():
     assert "◀ Close" not in app_code, "Redundant Close button should be removed"
     print("    Native sidebar expand/collapse (<< and >> Open Roadmap) integrity verified.")
 
+    # 17. Test Micro-interactions, Button Relocation, Semantic Colors, Stepper Timeline & De-duplication
+    print("[17] Testing Micro-interactions, Button Relocation, Semantic Colors, Stepper Timeline & De-duplication...")
+    with open("app.py") as f:
+        app_code = f.read()
+
+    # 1. Vibrant primary blue #2563EB
+    assert "--gmat-sys-color-primary: #2563EB;" in app_code, "Modern vibrant blue #2563EB must be in design tokens"
+    assert "--gmat-sys-color-primary-container: #EFF6FF;" in app_code
+    assert "--gmat-sys-color-on-primary-container: #1D4ED8;" in app_code
+
+    # 2. Stepper timeline progression line
+    assert 'div[data-testid="stHorizontalBlock"]:has(button[key*="stepper_"])::before' in app_code, "Stepper timeline connector line must be defined"
+
+    # 3. Softened expanders / accordions
+    assert 'div[data-testid="stExpander"]' in app_code
+    assert "border: 1px solid #E5E7EB" in app_code, "Softened expander border must be #E5E7EB"
+
+    # 4. De-duplication: Card 1 title removed, Stage header topic subheader removed
+    assert "pack.card1_concept.title" not in app_code, "Redundant pack.card1_concept.title must be removed from Card 1"
+    assert "{topic_title}" not in app_code, "Redundant {topic_title} subheader must be removed from stage header"
+
+    # 5. Skip button relocation to bottom navigation
+    assert "skip_stage_c1" in app_code, "Skip button must be present in Card 1 bottom navigation"
+    assert "skip_stage_c2" in app_code, "Skip button must be present in Card 2 bottom navigation"
+    assert "skip_stage_c3" in app_code, "Skip button must be present in Card 3 bottom navigation"
+    assert "skip_stage_c4" in app_code, "Skip button must be present in Card 4 bottom navigation"
+    assert "def skip_or_advance_stage" in app_code, "skip_or_advance_stage function must be present"
+
+    # 6. Sidebar semantic status colors
+    assert "sidebar_style_rules" in app_code, "Dynamic semantic status rules must be present"
+    assert "#F0FDF4" in app_code and "#BBF7D0" in app_code, "Mastered green status styling must be present"
+    assert "#FFFBEB" in app_code and "#FDE68A" in app_code, "Needs-review amber status styling must be present"
+    print("    UX Improvements: Button Relocation, Semantic Colors, Stepper Timeline & De-duplication verified.")
+
     print("==================================================")
-    print("ALL 16 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
+    print("ALL 17 SYSTEM IMPROVEMENTS TESTED & PASSED SUCCESSFULLY!")
     print("==================================================")
 
 
